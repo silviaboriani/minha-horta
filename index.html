@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Minha Horta</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#4f8a3c">
+  <link rel="icon" href="img/favicon-32.png" type="image/png">
+  <link rel="apple-touch-icon" href="img/icone-180.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Minha Horta">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="stylesheet" href="css/estilo.css">
+</head>
+<body class="modo-mapa">
+  <header class="topo">
+    <div class="marca">
+      <button class="hamburguer" id="btnMenu" title="Menu: novo projeto, exportar, abrir, projetos guardados…" aria-label="Menu">☰</button>
+      <span class="logo">🌱</span>
+      <input id="nomeHorta" class="nome-horta" aria-label="Nome da horta">
+    </div>
+    <div class="acoes-topo">
+      <button id="btnDesfazer" title="Desfazer (Ctrl+Z)">↶<span class="rot"> Desfazer</span></button>
+      <button id="btnRefazer" title="Refazer (Ctrl+Y)">↷<span class="rot"> Refazer</span></button>
+      <span class="grupo-zoom" data-modo="mapa sol">
+        <span class="sep"></span>
+        <button id="btnZoomMenos" title="Diminuir zoom (−)">−</button>
+        <span id="zoomTxt" class="zoom-txt">100%</span>
+        <button id="btnZoomMais" title="Aumentar zoom (+)">+</button>
+        <button id="btnAjustar" title="Ajustar à tela (0)"><span class="so-estreito">⤢</span><span class="rot">Ajustar à tela</span></button>
+      </span>
+    </div>
+    <nav class="abas">
+      <button data-aba="mapa" class="ativa"><span class="rot">1 · </span>Horta</button>
+      <button data-aba="sol"><span class="rot">2 · </span>Sol<span class="rot"> e sombra</span></button>
+      <button data-aba="plantas"><span class="rot">3 · </span>Plantas</button>
+      <button data-aba="diario"><span class="rot">4 · </span>Diário</button>
+    </nav>
+  </header>
+
+  <main class="layout">
+    <button class="aba-painel esq" id="abaEsq" aria-label="Recolher ou mostrar painel da esquerda">‹</button>
+    <button class="aba-painel dir" id="abaDir" aria-label="Recolher ou mostrar painel da direita">›</button>
+    <aside class="painel esquerda">
+      <section data-modo="diario" class="filtros form">
+        <h2>Filtrar o diário</h2>
+        <div id="dFiltros"></div>
+      </section>
+
+      <section data-modo="plantas" class="filtros form">
+        <h2>Plantas <button id="pNova" class="pequeno principal">+ Nova planta</button></h2>
+        <input id="pBusca" type="search" placeholder="🔍 Buscar planta…" autocomplete="off">
+        <label class="check" id="pFiltroFav"><input type="checkbox" id="pSoLista"> ★ Só favoritos (<span id="pQtdLista"></span>)</label>
+        <label class="check"><input type="checkbox" id="pSoNativas"> Só nativas do Brasil</label>
+        <label>Semear ou plantar em
+          <select id="pMes"><option value="">Qualquer mês</option></select>
+        </label>
+        <label>Sol
+          <select id="pSol">
+            <option value="">Qualquer</option>
+            <option value="4">Aguenta meia-sombra</option>
+            <option value="6">Precisa de sol pleno</option>
+          </select>
+        </label>
+        <div class="cats" id="pCats"></div>
+        <div class="botoes">
+          <button id="pAgora">🌱 O que semear agora?</button>
+          <button id="pLimpar">Limpar filtros</button>
+        </div>
+      </section>
+
+      <section data-modo="mapa" class="sec-desenho">
+        <button id="btnEditarDesenho" class="editar-desenho"></button>
+        <p class="nota" id="notaDesenho"></p>
+      </section>
+
+      <section data-modo="mapa" data-desenho="nao" class="legenda-cal-lateral">
+        <h2>Legenda</h2>
+        <p class="nota">Escolha o mês no topo do mapa. Cada canteiro mostra o que está acontecendo nele:</p>
+        <ul class="legenda-lista">
+          <li>🌰 <b>Semear na bandeja</b> — mudas, semanas antes de plantar (cada planta tem seu tempo)</li>
+          <li>🌱 <b>Plantar</b> no canteiro</li>
+          <li>🪴 <b>Crescendo</b></li>
+          <li>🧺 <b>Colher</b></li>
+          </ul>
+        <p class="nota" style="margin:6px 0 4px">Situação de cada canteiro no mês:</p>
+        <ul class="legenda-lista">
+          <li>🟢 <b>Cheio</b> — bem aproveitado</li>
+          <li>🟡 <b>Cabe mais</b> — ainda tem espaço</li>
+          <li>🔵 <b>Livre</b> — vazio no mês</li>
+          <li>⚠️ <b>Problema</b> — em vermelho</li>
+        </ul>
+        <p class="nota">Clique num canteiro para escolher as plantas e o mês de plantio de cada uma. Clique fora para ver as tarefas do mês. Use ← e → no teclado para trocar de mês.</p>
+      </section>
+
+      <section data-modo="mapa sol">
+        <h2>Ferramentas</h2>
+        <div class="ferramentas" id="ferramentas"></div>
+        <div class="linha-pincel" id="linhaPincel">
+          <span>Tamanho do pincel</span>
+          <div class="seg" id="tamPincel">
+            <button data-t="1">1</button><button data-t="2">2</button><button data-t="3">3</button><button data-t="5">5</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="secFormas" data-modo="mapa" data-desenho="sim" class="form">
+        <div id="opcoesForma">
+          <label>Ao desenhar, criar <select id="tipoForma"></select></label>
+          <p class="nota">Arraste no vazio (ou em cima do caminho) para criar. Arraste uma área para mover; puxe os quadradinhos laranja para mudar o tamanho. <b>Ctrl+D</b> duplica.</p>
+        </div>
+        <div id="opcoesFileira" class="oculto">
+          <div class="grade2">
+            <label>Quantos <input id="fN" type="number" min="1" max="20"></label>
+            <label>Tipo <select id="fTipo"></select></label>
+            <label>Largura (m) <input id="fLarg" inputmode="decimal"></label>
+            <label>Comprimento (m) <input id="fComp" inputmode="decimal"></label>
+            <label>Corredor (m) <input id="fEsp" inputmode="decimal"></label>
+            <label>Direção <select id="fDir"><option value="lado">Lado a lado →</option><option value="embaixo">Um embaixo do outro ↓</option></select></label>
+          </div>
+          <p class="nota" id="notaFileira">Mova o mouse no mapa para ver a fileira e clique para colocar.</p>
+        </div>
+        <button id="btnCaminhos" title="Todo o espaço vazio do terreno vira caminho">👣 Preencher caminhos no espaço vazio</button>
+      </section>
+
+      <section class="sec-zonas" data-modo="mapa">
+        <h2>Áreas
+          <span class="botoes-h2">
+            <button id="btnNovoGrupo" class="pequeno" title="Criar uma categoria para agrupar áreas">+ Categoria</button>
+            <button id="btnNovaZona" class="pequeno principal">+ Nova</button>
+          </span>
+        </h2>
+        <div id="menuNovaZona" class="menu oculto"></div>
+        <ul id="listaZonas" class="lista-zonas"></ul>
+      </section>
+
+      <section class="sec-zonas" data-modo="sol">
+        <h2>Árvores e construções</h2>
+        <ul id="listaObjetos" class="lista-zonas"></ul>
+        <p class="nota" style="margin-top:10px">Marque tudo o que pode fazer sombra na horta — dentro ou fora do terreno (árvore do vizinho, casa, galpão).</p>
+      </section>
+    </aside>
+
+    <div class="area-plantas" id="areaPlantas" data-modo="plantas"></div>
+    <div class="area-diario" id="areaDiario" data-modo="diario"></div>
+
+    <div class="area-ano oculto" id="areaAno" data-modo="mapa"></div>
+
+    <div class="area-mapa" id="areaMapa" data-modo="mapa sol">
+      <div class="faixa-meses" id="faixaMeses" data-modo="mapa"></div>
+      <canvas id="mapa"></canvas>
+      <div class="dica" id="dica"></div>
+      <div class="aviso oculto" id="aviso"></div>
+    </div>
+
+    <aside class="painel direita">
+      <!-- ======== Modo Calendário ======== -->
+      <div data-modo="mapa" id="painelCal"></div>
+
+      <!-- ======== Modo Diário ======== -->
+      <section data-modo="diario" id="formDiario"></section>
+
+      <!-- ======== Modo Plantas ======== -->
+      <section data-modo="plantas" class="sec-planta">
+        <div id="detalhePlanta"></div>
+      </section>
+
+      <!-- ======== Modo Sol e sombra ======== -->
+      <section data-modo="sol">
+        <h2>1 · Onde fica a horta <span class="ok" id="okLocal"></span></h2>
+        <div class="form">
+          <label>Cidade <input id="sCidade"></label>
+          <div class="grade2 alinhar-base">
+            <label>Latitude <input id="sLat" inputmode="decimal"></label>
+            <label>Longitude <input id="sLon" inputmode="decimal"></label>
+          </div>
+          <div class="grade2 alinhar-base">
+            <button id="btnGeo" title="Pede a localização ao navegador">📍 Usar minha localização</button>
+          </div>
+        </div>
+        <p class="nota" id="sHemisferio"></p>
+      </section>
+
+      <section data-modo="sol">
+        <h2>2 · Onde fica o norte <span class="ok" id="okNorte"></span></h2>
+        <p class="aviso-inline" id="avisoNorte">Ainda não definido. Arraste a agulha vermelha até o norte verdadeiro, ou use os botões.</p>
+        <div class="bussola-linha">
+          <canvas id="bussola" title="Arraste para girar"></canvas>
+          <div class="botoes-norte">
+            <button data-norte="0">↑ Norte em cima</button>
+            <button data-norte="90">→ Norte à direita</button>
+            <button data-norte="180">↓ Norte embaixo</button>
+            <button data-norte="270">← Norte à esquerda</button>
+          </div>
+        </div>
+        <label class="faixa">Ajuste fino <input type="range" id="sNorte" min="0" max="355" step="5"> <span id="sNorteTxt"></span></label>
+        <p class="nota">Dica: fique na horta segurando o celular ou iPad com o app <b>Bússola</b>, virado para o lado que é o “topo” do seu mapa. O ângulo que aparecer é o quanto o norte está girado.</p>
+      </section>
+
+      <section data-modo="sol" id="formObjeto" class="form oculto">
+        <h2 id="oTitulo">Objeto selecionado</h2>
+        <label>Nome <input id="oNome"></label>
+        <div class="grade2">
+          <label>Altura (m) <input id="oAltura" inputmode="decimal"></label>
+          <label data-so="arvore">Largura da copa (m) <input id="oDiametro" inputmode="decimal"></label>
+        </div>
+        <label data-so="arvore">Folhas
+          <select id="oFolhas">
+            <option value="perene">Perene (folhas o ano todo)</option>
+            <option value="caduca">Caduca (perde as folhas no inverno)</option>
+          </select>
+        </label>
+        <div class="grade2" data-so="construcao">
+          <label>Largura (m) <input id="oLargura" inputmode="decimal"></label>
+          <label>Profundidade (m) <input id="oProfundidade" inputmode="decimal"></label>
+        </div>
+        <button id="oExcluir" class="perigo">Excluir</button>
+      </section>
+
+      <section data-modo="sol">
+        <h2>3 · Sol em cada área</h2>
+        <div class="grade2 alinhar-base form">
+          <label>Mês <select id="sMes"></select></label>
+          <label class="check"><input type="checkbox" id="sMostrar" checked> Mostrar no mapa</label>
+        </div>
+        <div class="legenda">
+          <div class="barra"></div>
+          <div class="marcas"><span>0 h</span><span>3 h</span><span>6 h</span><span>9 h</span><span>12 h+</span></div>
+          <div class="classes"><span>☁️ Sombra</span><span>⛅ Meia-sombra</span><span>☀️ Sol pleno</span></div>
+        </div>
+        <p class="nota" id="sDia"></p>
+        <table class="tab-sol">
+          <thead><tr><th>Área</th><th>Sol por dia</th><th>Manhã / tarde</th></tr></thead>
+          <tbody id="tabSol"></tbody>
+        </table>
+        <p class="nota" style="margin-top:10px">Horas de sol direto num dia típico do mês, considerando árvores, construções, muros e a sombra pintada à mão. <b>Sol pleno</b>: 6 h ou mais · <b>meia-sombra</b>: 3 a 6 h · <b>sombra</b>: menos de 3 h. Compare dezembro e junho para ver a diferença entre verão e inverno.</p>
+      </section>
+
+      <!-- ======== Modo Mapa ======== -->
+      <section id="secZona" data-modo="mapa">
+        <h2>Área selecionada</h2>
+        <p id="semZona" class="vazio">Clique numa área da lista à esquerda, ou use a ferramenta <b>Selecionar</b> e clique no mapa.</p>
+        <div id="formZona" class="form">
+          <label>Nome <input id="zNome"></label>
+          <div class="grade2">
+            <label>Tipo <select id="zTipo"></select></label>
+            <label>Cor <input type="color" id="zCor"></label>
+          </div>
+          <label>Categoria <select id="zGrupo"></select></label>
+          <label id="zAlturaLinha">Altura (m) <small>— usada para calcular a sombra</small>
+            <input id="zAltura" inputmode="decimal">
+          </label>
+          <div class="medidas" id="zMedidas"></div>
+          <div id="zPlantio"></div>
+          <div id="zAno"></div>
+          <div id="zMedidasExatas"></div>
+          <button id="zDuplicar" data-desenho="sim" title="Ctrl+D">⧉ Duplicar (sem as plantas)</button>
+          <button id="zExcluir" class="perigo">🗑 Deletar esta área <small>(Del)</small></button>
+        </div>
+      </section>
+
+      <section data-modo="mapa" data-desenho="sim">
+        <h2>Terreno</h2>
+        <div class="grade2">
+          <label>Largura (m) <input type="number" id="tLarg" step="0.2" min="1" max="100"></label>
+          <label>Comprimento (m) <input type="number" id="tComp" step="0.2" min="1" max="100"></label>
+        </div>
+        <p class="nota" id="tInfo"></p>
+      </section>
+
+    </aside>
+  </main>
+
+  <!-- ======== Menu ☰ (gaveta) ======== -->
+  <div class="menu-lateral oculto" id="menuLateral">
+    <div class="menu-fundo" data-menu="fechar"></div>
+    <aside class="menu-painel" aria-label="Menu">
+      <div class="menu-topo">
+        <span class="logo">🌱</span><b>Minha Horta</b>
+        <button class="fechar-menu" data-menu="fechar" title="Fechar (Esc)">×</button>
+      </div>
+        <section>
+          <h2>Projeto e arquivo</h2>
+          <p class="nota">Tudo é salvo automaticamente neste navegador. Para guardar uma cópia ou levar para outro aparelho, exporte o arquivo.</p>
+          <div class="botoes">
+            <button id="btnNovoProjeto" class="principal">🌱 Novo projeto</button>
+            <button id="btnExportar">⬇ Exportar arquivo</button>
+            <button id="btnImportar">⬆ Abrir arquivo</button>
+            <button id="btnImagem">🖼 Salvar imagem</button>
+            <button id="btnExemplo">↺ Restaurar exemplo</button>
+            <button id="btnZerar" class="perigo">Começar do zero</button>
+          </div>
+          <input type="file" id="arquivo" accept=".json,application/json" hidden>
+          <div id="projetosGuardados"></div>
+        </section>
+        <section>
+          <h2>📲 Instalar no iPad</h2>
+          <div id="instalarApp"></div>
+        </section>
+      </aside>
+  </div>
+
+  <div class="modal inicio oculto" id="modalInicio"><div class="caixa" id="inicioCaixa"></div></div>
+  <div class="modal dialogo oculto" id="modalDialogo"><div class="caixa" id="dialogoCaixa"></div></div>
+  <div class="modal oculto" id="modalGeral"><div class="caixa" id="modalGeralCaixa"></div></div>
+  <div class="modal oculto" id="modalPlano"><div class="caixa" id="modalPlanoCaixa"></div></div>
+
+  <footer class="status">
+    <span id="stPos">Toque ou passe o mouse sobre o mapa</span>
+    <span id="stZona"></span>
+    <span class="espaco"></span>
+    <span id="stSalvo" class="salvo"></span>
+  </footer>
+
+  <script src="js/exemplo.js"></script>
+  <script src="js/toque.js"></script>
+  <script src="js/dialogo.js"></script>
+  <script src="js/inicio.js"></script>
+  <script src="js/sol.js"></script>
+  <script src="js/plantas.js"></script>
+  <script src="js/fotos.js"></script>
+  <script src="js/plantas-ui.js"></script>
+  <script src="js/ciclo.js"></script>
+  <script src="js/plano.js"></script>
+  <script src="js/calendario.js"></script>
+  <script src="js/bandeja.js"></script>
+  <script src="js/sugerir.js"></script>
+  <script src="js/compras.js"></script>
+  <script src="js/diario.js"></script>
+  <script src="js/lembretes.js"></script>
+  <script src="js/clima.js"></script>
+  <script src="js/limpar.js"></script>
+  <script src="js/formas.js"></script>
+  <script src="js/menu.js"></script>
+  <script src="js/instalar.js"></script>
+  <script src="js/paineis.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

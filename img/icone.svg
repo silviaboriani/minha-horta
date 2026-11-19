@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Ícone do app: broto saindo da terra -->
+  <rect width="512" height="512" fill="#4f8a3c"/>
+  <path d="M0 360 Q256 300 512 360 V512 H0Z" fill="#7a5233"/>
+  <path d="M0 392 Q256 340 512 392" fill="none" stroke="#8f6440" stroke-width="10"/>
+  <path d="M256 340 C256 290 254 250 256 200" fill="none" stroke="#e9f5df" stroke-width="22" stroke-linecap="round"/>
+  <path d="M254 236 C200 236 150 200 140 140 C200 132 250 168 254 236Z" fill="#e9f5df"/>
+  <path d="M258 206 C268 140 320 104 390 108 C386 176 330 212 258 206Z" fill="#c8e6a8"/>
+</svg>
