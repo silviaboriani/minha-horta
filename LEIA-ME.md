@@ -143,3 +143,9 @@ Registre plantios 🌱, colheitas 🧺 (com kg/unidades), notas 📝, pragas �
 - **Sem teclado:** Desfazer/Refazer, Excluir área, ⧉ Duplicar, mês (barra de meses) e zoom (− + ⤢) têm botões. Ao marcar a posição de uma planta, o botão **🧽 apagar** faz o que o Alt faz no computador.
 - **Alças** das formas e botões ficam maiores no toque; campos usam letra de 16 px (o iPad não dá zoom ao digitar).
 - **iPad em pé** (tela estreita): o mapa ocupa a largura toda e os painéis abrem **por cima**, um de cada vez, pelas abas ‹ › nas bordas. Tocar num canteiro ou numa planta abre o painel com os detalhes. A barra do topo mostra só ícones.
+
+## Online e no iPad
+- Endereço: **https://silviaboriani.github.io/minha-horta/** (GitHub Pages; repositório público `silviaboriani/minha-horta`). Só o app fica online — **os dados da horta ficam em cada aparelho**.
+- **Instalar no iPad:** abra o endereço no **Safari** → botão **Compartilhar** (□↑) → **Adicionar à Tela de Início**. Abra uma vez com internet para ele guardar tudo; depois funciona sem sinal.
+- **Levar a horta do computador para o iPad:** no computador, ☰ → **Exportar arquivo**; mande o arquivo para o iPad (AirDrop, iCloud Drive, e-mail); no iPad, ☰ → **Abrir arquivo**.
+- **Atualizar o site** depois de mudanças: `git add -A`, `git commit`, `git push` (e aumentar `VERSAO` em sw.js). O app instalado se atualiza sozinho na próxima vez que abrir com internet.

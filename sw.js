@@ -7,9 +7,10 @@
 //    não houver sinal em 3 s, usa a cópia guardada — funciona na horta.
 //  • Fotos e ícones: usa a cópia guardada (não mudam).
 //  • Pedidos para outros sites (clima, busca de cidade) não são guardados.
-//  Ao mudar a lista de arquivos, aumente VERSAO.
+//  A cada publicação, aumente VERSAO: o cache antigo é apagado e tudo
+//  (inclusive fotos trocadas com o mesmo nome) é baixado de novo.
 // =====================================================================
-const VERSAO = 'horta-v5';
+const VERSAO = 'horta-v6';
 
 const APP = [
   './', 'index.html', 'manifest.webmanifest', 'css/estilo.css',
@@ -26,9 +27,10 @@ const FOTOS_ARQ = Object.values(FOTOS).map(f => f.arquivo);
 self.addEventListener('install', ev => {
   ev.waitUntil((async () => {
     const cache = await caches.open(VERSAO);
-    await cache.addAll(APP);
+    // cache: 'reload' = baixa de novo do servidor (não usa cópia velha do navegador)
+    await cache.addAll(APP.map(a => new Request(a, { cache: 'reload' })));
     // fotos uma a uma: se alguma falhar, o resto continua
-    await Promise.all(FOTOS_ARQ.map(a => cache.add(a).catch(() => {})));
+    await Promise.all(FOTOS_ARQ.map(a => cache.add(new Request(a, { cache: 'reload' })).catch(() => {})));
     await self.skipWaiting();
   })());
 });
