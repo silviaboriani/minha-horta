@@ -209,8 +209,7 @@ function renderDiario() {
   if (!lista.length) {
     html += `<div class="vazio-diario"><div style="font-size:40px">📔</div>
       <p><b>O diário está vazio.</b></p>
-      <p class="nota">Registre o que você plantou, colheu e observou — com fotos. Dá para registrar direto das tarefas do mês
-      (botões ✓ na aba Horta) ou com “+ Novo registro”. Com o tempo, o app usa isso para a rotação de culturas e para corrigir os dias até a colheita.</p></div>`;
+      <p class="nota">Anote o que plantou, colheu e observou, com fotos: pelos botões ✓ das tarefas ou em “+ Novo registro”. O app usa isso na rotação de culturas e para acertar os dias até a colheita.</p></div>`;
   }
   $('areaDiario').innerHTML = html;
   carregarFotosVisiveis();
@@ -223,7 +222,7 @@ function renderFormDiario() {
   if (!r) {
     box.innerHTML = `<h2>Diário</h2>
       <button class="principal" data-diario="novo" style="width:100%">+ Novo registro</button>
-      <p class="nota" style="margin-top:10px">Clique num registro para editar. As fotos ficam guardadas só neste navegador (não vão no arquivo exportado).</p>`;
+      <p class="nota" style="margin-top:10px">Toque num registro para editar. As fotos ficam só neste aparelho (não vão no arquivo exportado).</p>`;
     return;
   }
   const z = zonaPorId(r.zona);

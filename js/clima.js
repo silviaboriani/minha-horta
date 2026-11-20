@@ -82,25 +82,29 @@ function alertasClima() {
 
 function htmlClima() {
   if (!estado.clima?.ativo) {
-    return `<section class="sec-clima"><h2>🌦️ Tempo</h2>
-      <p class="nota">Previsão de 7 dias com alertas de <b>geada</b> e de <b>rega</b>. Para isso o app consulta o site open-meteo.com,
-      enviando a localização aproximada da horta (~1 km: ${fmt(Number(estado.local.lat), 2)}, ${fmt(Number(estado.local.lon), 2)}).</p>
-      <button data-clima="ativar">Ativar previsão do tempo</button></section>`;
+    return `<section class="sec-clima"><div class="linha-clima">🌦️ <b>Previsão do tempo</b> <button class="pequeno" data-clima="ativar">Ativar</button></div>
+      <p class="nota">Alertas de geada e de rega. Consulta o open-meteo.com com a localização aproximada da horta (~1 km).</p></section>`;
   }
-  if (!previsao) return `<section class="sec-clima"><h2>🌦️ Tempo</h2><p class="nota">${buscandoClima ? 'Buscando a previsão…' : 'Sem previsão ainda.'}</p>
-    <button class="pequeno" data-clima="atualizar">↻ Atualizar</button> <button class="pequeno" data-clima="desativar">Desativar</button></section>`;
+  if (!previsao) return `<section class="sec-clima"><div class="linha-clima">🌦️ <span class="nota">${buscandoClima ? 'Buscando a previsão…' : 'Sem previsão ainda.'}</span>
+    <button class="pequeno" data-clima="atualizar">↻</button> <button class="pequeno" data-clima="desativar">Desativar</button></div></section>`;
   const hoje = hojeISO();
   const dias = previsao.dias.filter(d => d.data >= hoje).slice(0, 7);
   const icone = d => d.min <= 3 ? '❄️' : d.chuva >= 10 ? '🌧️' : d.chuva >= 1 ? '🌦️' : d.max >= 30 ? '☀️' : '⛅';
-  return `<section class="sec-clima"><h2>🌦️ Tempo <span class="nota">${new Date(previsao.quando).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span></h2>
-    ${alertasClima().map(a => `<div class="alerta-clima ${a.nivel}">${escapar(a.texto)}</div>`).join('')}
+  const d0 = dias[0];
+  // Uma linha com o dia de hoje; os 7 dias abrem ao tocar. Os alertas ficam sempre à mostra.
+  return `<section class="sec-clima"><details class="clima-det" data-chave="clima" ${estaAberto('clima', false) ? 'open' : ''}>
+    <summary>🌦️ <b>Tempo</b>${d0 ? ` · hoje ${icone(d0)} ${Math.round(d0.max)}° / ${Math.round(d0.min)}°${d0.chuva >= 1 ? ` · ${Math.round(d0.chuva)} mm` : ''}` : ''}
+      <span class="nota">· 7 dias</span></summary>
     <div class="dias-clima">${dias.map(d => `<div class="dia" title="${fmt(d.chuva, 1)} mm${d.prob !== null ? ` · ${d.prob}% de chance` : ''}">
       <div class="nome">${d.data === hoje ? 'hoje' : new Date(d.data + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '')}</div>
       <div class="ic">${icone(d)}</div>
       <div class="max">${Math.round(d.max)}°</div><div class="min ${d.min <= 3 ? 'frio' : ''}">${Math.round(d.min)}°</div>
       ${d.chuva >= 1 ? `<div class="mm">${Math.round(d.chuva)} mm</div>` : ''}
     </div>`).join('')}</div>
-    <div class="acoes-clima"><button class="pequeno" data-clima="atualizar">↻ Atualizar</button> <button class="pequeno" data-clima="desativar">Desativar</button></div>
+    <div class="acoes-clima"><span class="nota">atualizado às ${new Date(previsao.quando).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+      <button class="pequeno" data-clima="atualizar">↻ Atualizar</button> <button class="pequeno" data-clima="desativar">Desativar</button></div>
+    </details>
+    ${alertasClima().map(a => `<div class="alerta-clima ${a.nivel}">${escapar(a.texto)}</div>`).join('')}
   </section>`;
 }
 

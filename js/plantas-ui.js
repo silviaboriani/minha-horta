@@ -247,9 +247,9 @@ function htmlVariedades(p) {
       : `<figure class="variedade">${img}<figcaption>${nome}</figcaption></figure>`;
   }).join('');
   return `<h4>Variedades</h4>
-    <p class="nota">${!comEntrada ? 'Mesmas regras de plantio — as fotos só ajudam a reconhecer qual é qual.'
-      : p.variedades.every(v => v.id) ? 'Cada tipo tem ficha própria (ciclo, espaço ou tutor diferentes) — toque para ver.'
-      : 'Os tipos com → têm ficha própria — toque para ver. Os outros seguem as regras desta ficha.'}</p>
+    <p class="nota">${!comEntrada ? 'Mesmas regras de plantio; as fotos ajudam a reconhecer cada uma.'
+      : p.variedades.every(v => v.id) ? 'Cada tipo tem ficha própria: toque para ver.'
+      : 'Os tipos com → têm ficha própria; os outros seguem esta.'}</p>
     <div class="variedades">${itens}</div>`;
 }
 

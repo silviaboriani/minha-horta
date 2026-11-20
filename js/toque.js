@@ -12,9 +12,20 @@ const TXT = {
   passe: TOQUE ? 'Toque e segure' : 'Passe o mouse',
   moverMapa: TOQUE ? 'Arraste com um dedo para mover o mapa; afaste dois dedos para zoom.' : 'Arraste para mover o mapa. Roda do mouse: zoom.',
   mapaVazio: TOQUE ? 'Toque no mapa' : 'Passe o mouse sobre o mapa',
+  clique: TOQUE ? 'Toque' : 'Clique',
 };
 
 function montarToque() {
+  document.addEventListener('click', ev => {
+    const b = ev.target.closest('[data-info]');
+    if (!b) return;
+    ev.preventDefault(); ev.stopPropagation();
+    const caixa = b.closest('section, .info-bloco, details, .caixa');
+    const t = caixa && caixa.querySelector('.info-texto');
+    if (!t) return;
+    t.classList.toggle('aberto');
+    b.classList.toggle('on', t.classList.contains('aberto'));
+  }, true);
   if (TOQUE) document.documentElement.classList.add('toque');
   let timer = null, balao = null, inicio = null, engolirClique = false;
 

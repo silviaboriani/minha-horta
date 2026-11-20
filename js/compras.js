@@ -94,7 +94,7 @@ function renderCompras() {
       <span class="nota">a partir de ${MESES[inicio - 1].toLowerCase()} (mude o mês na barra do mapa)</span>
     </div>
     ${vazio ? '<p class="vazio">Nada para plantar neste período. Escolha plantas e meses de plantio nos canteiros.</p>' : html}
-    <p class="nota">Sementes diretas: conta 2 por cova (depois desbaste). Mudas: compre prontas ou semeie ~50% a mais na bandeja (o tempo de bandeja varia: ~1 mês para couves e tomate, 1,5 mês para pimentão e cebola, 2 meses para alho-poró).</p>
+    <p class="nota">Sementes diretas: 2 por cova (depois desbaste). Mudas: compre prontas ou semeie ~50% a mais na bandeja.</p>
     <div class="acoes-plano">
       <button class="principal" data-geral="copiar" ${vazio ? 'disabled' : ''}>📋 Copiar lista</button>
       <button data-geral="imprimir" ${vazio ? 'disabled' : ''}>🖨 Imprimir</button>

@@ -19,9 +19,9 @@ function montarInstalar() {
   const caixa = $('instalarApp');
   if (!caixa) return;
   caixa.innerHTML = rodandoComoApp()
-    ? `<p class="nota">✓ Você está usando o app instalado. Funciona sem internet; quando houver sinal, ele se atualiza sozinho.</p>
-       <p class="nota">💾 Os dados ficam só neste aparelho. De vez em quando, use <b>Exportar arquivo</b> para guardar uma cópia.</p>`
-    : `<p class="nota"><b>No iPad ou iPhone:</b> abra este endereço no Safari, toque em <b>Compartilhar</b> (□↑) e depois em <b>Adicionar à Tela de Início</b>.</p>
-       <p class="nota"><b>No Android ou computador (Chrome/Edge):</b> menu do navegador → <b>Instalar app</b>.</p>
-       <p class="nota">Depois de instalado, abre em tela cheia e funciona sem internet. Os dados de cada aparelho são separados — use <b>Exportar/Abrir arquivo</b> para levar a horta de um para outro.</p>`;
+    ? `<p class="nota">✓ App instalado: funciona sem internet e se atualiza sozinho quando há sinal.</p>
+       <p class="nota">💾 Os dados ficam só neste aparelho: de vez em quando, use <b>Exportar arquivo</b> para ter uma cópia.</p>`
+    : `<p class="nota"><b>iPad ou iPhone:</b> no Safari, toque em <b>Compartilhar</b> (□↑) → <b>Adicionar à Tela de Início</b>.</p>
+       <p class="nota"><b>Android ou computador:</b> menu do navegador → <b>Instalar app</b>.</p>
+       <p class="nota">Instalado, abre em tela cheia e funciona sem internet. Cada aparelho guarda os seus dados: use <b>Exportar/Abrir arquivo</b> para passar a horta de um para outro.</p>`;
 }

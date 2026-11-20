@@ -22,17 +22,17 @@ const FERRAMENTAS = [
   { id: 'forma', icone: '⬚', nome: 'Canteiros', tecla: 'F',
     dica: 'Arraste no vazio para criar · arraste uma área para mover · alças para o tamanho · Ctrl+D duplica.' },
   { id: 'fileira', icone: '▦', nome: 'Fileira', tecla: 'L',
-    dica: 'Clique para colocar uma fileira de canteiros (ajuste quantos e o tamanho no painel).' },
+    dica: `${TXT.clique} para colocar a fileira (quantos e o tamanho ficam no painel).` },
   { id: 'selecionar', icone: '👆', nome: 'Selecionar', tecla: 'V',
-    dica: 'Clique numa área do mapa para ver e editar os detalhes dela.' },
+    dica: `${TXT.clique} numa área para ver os detalhes.` },
   { id: 'pincel', icone: '🖌️', nome: 'Pincel', tecla: 'B',
-    dica: 'Clique e arraste para pintar com a área selecionada: <b>{zona}</b>.' },
+    dica: 'Arraste para pintar com <b>{zona}</b>.' },
   { id: 'retangulo', icone: '⬛', nome: 'Retângulo', tecla: 'R',
     dica: `Arraste para desenhar um retângulo de <b>{zona}</b>. ${TOQUE ? 'Para apagar, use a Borracha.' : 'Segure Alt para apagar.'}` },
   { id: 'balde', icone: '🪣', nome: 'Preencher', tecla: 'G',
-    dica: 'Clique para preencher um espaço contínuo com <b>{zona}</b>.' },
+    dica: `${TXT.clique} para preencher o espaço com <b>{zona}</b>.` },
   { id: 'borracha', icone: '🧽', nome: 'Borracha', tecla: 'E',
-    dica: 'Clique e arraste para apagar.' },
+    dica: 'Arraste para apagar.' },
   { id: 'mao', icone: '✋', nome: 'Mover mapa', tecla: 'H',
     dica: TXT.moverMapa },
 ];
@@ -787,8 +787,8 @@ function alternarDesenho(ligar) {
 function atualizarBotaoDesenho() {
   $('btnEditarDesenho').innerHTML = editandoDesenho ? '✓ Terminar desenho' : '✏️ Editar desenho';
   $('notaDesenho').textContent = editandoDesenho
-    ? 'Desenhe canteiros, caminhos e muros. Clique em “Terminar” para voltar a planejar.'
-    : 'Para mudar o formato da horta (canteiros, caminhos, muros, tamanho do terreno).';
+    ? 'Desenhe canteiros, caminhos e muros. Ao acabar, toque em “✓ Terminar desenho”.'
+    : '';
 }
 
 function ferramentasAtuais() {
@@ -945,7 +945,7 @@ function atualizarListaZonas() {
   const ul = $('listaZonas');
   ul.innerHTML = '';
   if (!estado.zonas.length) {
-    ul.innerHTML = '<li class="vazio-lista">Nenhuma área ainda. Clique em <b>✏️ Editar desenho</b> e arraste no terreno para criar um canteiro.</li>';
+    ul.innerHTML = '<li class="vazio-lista">Nenhuma área ainda. Toque em <b>✏️ Editar desenho</b> e arraste no terreno.</li>';
     return;
   }
   const cont = contarCelulas();
@@ -975,6 +975,8 @@ function atualizarFormZona() {
   if (formZonaId !== z.id) {
     if ($('secZona').contains(document.activeElement)) document.activeElement.blur();
     formZonaId = z.id;
+    // detalhes (nome, tipo, cor…) ficam recolhidos nos canteiros; abertos em caminhos, muros etc. e ao desenhar
+    $('zDetalhes').open = !TIPOS_PLANTAVEIS.includes(z.tipo) || editandoDesenho;
   }
   const ativo = document.activeElement;
   if (ativo !== $('zNome')) $('zNome').value = z.nome;
@@ -989,6 +991,9 @@ function atualizarFormZona() {
   if (ativo !== $('zAltura')) $('zAltura').value = z.altura || 0;
   $('zAlturaLinha').classList.toggle('oculto', !TIPOS_COM_ALTURA.includes(z.tipo));
   const md = medidasDaZona(z.id);
+  $('zResumo').innerHTML = `<span>${escapar(TIPOS[z.tipo]?.icone || '')} <b>${escapar(z.nome || 'Sem nome')}</b>` +
+    `${md.quadrados ? ` · ${fmt(md.area, 1)} m²` : ''}</span><span class="editar">✏️ editar</span>`;
+  $('zLimpar').classList.toggle('oculto', !TIPOS_PLANTAVEIS.includes(z.tipo) || !(z.plantas || []).length);
   $('zMedidas').innerHTML = md.quadrados
     ? `Área: <b>${fmt(md.area)} m²</b> (${md.quadrados} quadrados)<br>Tamanho: <b>${fmt(md.largura)} m × ${fmt(md.altura)} m</b>`
     : 'Ainda não foi desenhada no mapa. Use o <b>Retângulo</b> ou o <b>Pincel</b>.';

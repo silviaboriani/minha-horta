@@ -6,7 +6,7 @@
 
 const FERRAMENTAS_CAL = [
   { id: 'selecionar', icone: '👆', nome: 'Selecionar', tecla: 'V',
-    dica: 'Clique num canteiro para planejar. Clique fora para ver as tarefas do mês.' },
+    dica: `${TXT.clique} num canteiro para planejar; fora dele, para ver as tarefas.` },
   { id: 'mao', icone: '✋', nome: 'Mover mapa', tecla: 'H',
     dica: TXT.moverMapa },
 ];
@@ -133,11 +133,10 @@ function renderAno() {
     <div class="ano-topo">
       <h3>O ano inteiro da horta <button class="pequeno" data-vista="mes" style="margin-left:8px">🗺 Voltar ao mapa do mês</button></h3>
       <div class="legenda-st">${Object.entries(STATUS).map(([k, s]) => `<span><i class="${k}"></i>${s.icone} ${s.nome}</span>`).join('')}
-        <span class="nota">% = espaço ocupado no canteiro (plantas com quantidade definida)</span></div>
+        <span class="nota">% = espaço ocupado (plantas com quantidade)</span></div>
     </div>
-    ${zonas.length ? tabelaAno(zonas, false) : '<p class="vazio">Nenhum canteiro com plantas ainda. Adicione plantas na aba Mapa.</p>'}
-    <p class="nota" style="margin-top:12px">Mude o mês de plantio de cada planta no seletor ao lado do nome (meses com “·” estão fora da época recomendada).
-    Para plantar a mesma planta várias vezes no ano (sucessão), clique em “🔁 plantar de novo” no painel do canteiro.</p>`;
+    ${zonas.length ? tabelaAno(zonas, false) : '<p class="vazio">Nenhum canteiro com plantas ainda.</p>'}
+    <p class="nota" style="margin-top:12px">Mude o mês de plantio no seletor ao lado do nome (“·” = fora da época). Para plantar de novo no mesmo ano, use “🔁 plantar de novo” no canteiro.</p>`;
 }
 
 // ---------------------------------------------------------------------
@@ -153,67 +152,119 @@ function itemTarefa(z, e, texto, acao) {
   return `<li data-zona-sel="${z.id}" class="${feito ? 'feito' : ''}"><span class="e">${e.p ? escapar(e.p.emoji) : '•'}</span><span><b>${escapar(rotuloEntrada(z, e.entrada))}</b>${e.qtd ? ` ×${e.qtd}` : ''} <span class="onde">· ${escapar(z.nome)}</span>${texto ? `<div class="sub">${texto}</div>` : ''}</span>${botao}</li>`;
 }
 
+// Grupos abertos/fechados pela pessoa (chave → true/false); o resto usa o padrão de cada grupo
+const abertoTarefas = new Map();
+const estaAberto = (chave, padrao) => (abertoTarefas.has(chave) ? abertoTarefas.get(chave) : padrao);
+
+// Uma linha de tarefa dentro do canteiro: ícone + texto + botão ✓ (registra no diário)
+function subTarefa(z, e, icone, texto, acao) {
+  const m = mesSol + 1;
+  const feito = acao && feitoNoMes(acao, z.id, e.id, m);
+  const botao = !acao ? '' : feito
+    ? '<span class="feito" title="Registrado no diário">✓ feito</span>'
+    : `<button class="btn-feito" data-registrar="${acao}" data-zona="${z.id}" data-entrada="${escapar(e.entrada)}" title="Registrar no diário">✓</button>`;
+  return `<div class="sub-t ${feito ? 'feito' : ''}"><span>${icone} ${texto}</span>${botao}</div>`;
+}
+
+// Texto curto da tarefa de plantar, conforme o jeito de plantar
+function textoPlantar(p) {
+  if (p.forma === 'muda') return 'transplantar as mudas';
+  if (p.forma === 'direto') return 'plantar (direto no canteiro)';
+  if (p.forma === 'ambos') return 'plantar (direto no canteiro ou começar bandeja)';
+  const f = FORMAS[p.forma];
+  return f ? `plantar (${f.split(' (')[0].toLowerCase()})` : 'plantar';
+}
+
 function renderPainelCalendario() {
   const m = mesSol + 1;
   const an = analiseHorta();
-  const plantar = [], colher = [], crescendo = [], atencao = [], livres = [], florindo = [], cuidados = [];
+  const canteiros = [], livres = [], soCrescendo = [];
   for (const z of zonasPlantaveis().sort(ordemNome)) {
     const ents = an.entradasPorZona[z.id] || [];
     let ativas = 0;
+    const conta = { plantar: 0, colher: 0, cuidar: 0, atencao: 0, flor: 0 };
+    const porGrupo = {};   // grupo (vegetais, ervas, flores…) → linhas
     for (const e of ents) {
       if (!e.p) continue;
       const st = statusNoMes(e.p, e.inicio, m);
       if (st) ativas++;
+      const subs = [];
       if (st === 'plantar') {
-        plantar.push(itemTarefa(z, e, e.p.forma === 'muda' ? 'transplantar as mudas' : FORMAS[e.p.forma]?.toLowerCase(), 'plantio'));
+        conta.plantar++;
+        subs.push(subTarefa(z, e, STATUS.plantar.icone, textoPlantar(e.p), 'plantio'));
         if (!e.p.perene && !mesesDeIrProCanteiro(e.p).includes(m)) {
-          atencao.push(itemTarefa(z, e, `📅 fora da época de plantio (época: ${faixaMeses(mesesDeIrProCanteiro(e.p))})`));
+          conta.atencao++;
+          subs.push(subTarefa(z, e, '📅', `fora da época de plantio (época: ${faixaMeses(mesesDeIrProCanteiro(e.p))})`));
         }
       }
-      if (st === 'colher' && ehFlor(e.p)) florindo.push(itemTarefa(z, e, '', ''));
-      else if (st === 'colher') colher.push(itemTarefa(z, e, '', 'colheita'));
+      if (st === 'colher' && ehFlor(e.p)) conta.flor++;
+      else if (st === 'colher') { conta.colher++; subs.push(subTarefa(z, e, STATUS.colher.icone, 'colher', 'colheita')); }
       // Cuidados do mês (podar, flores murchas, arrancar, replantar)
       if (st && e.p.cuidados) {
         const flor = [...e.ativos].filter(mm => statusNoMes(e.p, e.inicio, mm) === 'colher');
         for (const c of e.p.cuidados) {
           if (c.tipo === 'replantar' && ((!e.p.perene && !ehFlor(e.p)) || st === 'plantar')) continue;
-          if (mesesDoCuidado(e.p, c, flor).includes(m)) cuidados.push(itemTarefa(z, e, `${TIPOS_CUIDADO[c.tipo].icone} ${c.texto}`, ''));
+          if (mesesDoCuidado(e.p, c, flor).includes(m)) { conta.cuidar++; subs.push(subTarefa(z, e, TIPOS_CUIDADO[c.tipo].icone, c.texto)); }
         }
       }
-      if (st === 'crescendo') crescendo.push(itemTarefa(z, e, ''));
-      if (st && e.p.geada && mesesGeada().includes(m)) atencao.push(itemTarefa(z, e, '❄️ risco de geada — cubra nas noites frias'));
+      if (st && e.p.geada && mesesGeada().includes(m)) { conta.atencao++; subs.push(subTarefa(z, e, '❄️', 'risco de geada — cubra nas noites frias')); }
+      if (!subs.length) continue;
+      const g = grupoDaPlanta(e.p);
+      (porGrupo[g] = porGrupo[g] || []).push(`<li data-zona-sel="${z.id}"><span class="e">${escapar(e.p.emoji)}</span><span class="t"><b>${escapar(rotuloEntrada(z, e.entrada))}</b>${e.qtd ? ` ×${e.qtd}` : ''}${subs.join('')}</span></li>`);
     }
     if (ents.some(e => !e.p)) ativas++;
-    if (!ativas) livres.push(`<li data-zona-sel="${z.id}" data-ir-mapa><span class="e">🔵</span><span><b>${escapar(z.nome)}</b> está livre<div class="sub">clique para ver o que plantar</div></span></li>`);
+    if (!ativas) { livres.push(`<li data-zona-sel="${z.id}" data-ir-mapa><span class="e">🔵</span><span><b>${escapar(z.nome)}</b> está livre<div class="sub">toque para ver o que plantar</div></span></li>`); continue; }
+    if (!Object.keys(porGrupo).length) { soCrescendo.push(`<span class="link-zona" data-zona-sel="${z.id}">${escapar(z.nome)}</span>`); continue; }
+    const contas = [
+      conta.plantar && `${STATUS.plantar.icone} ${conta.plantar}`, conta.colher && `${STATUS.colher.icone} ${conta.colher}`,
+      conta.cuidar && `✂️ ${conta.cuidar}`, conta.atencao && `⚠️ ${conta.atencao}`,
+    ].filter(Boolean).join(' · ');
+    const chave = `z${z.id}`;
+    canteiros.push(`<details class="tarefas canteiro-t" data-chave="${chave}" ${estaAberto(chave, false) ? 'open' : ''}>
+      <summary><span class="amostra" style="background:${escapar(z.cor)}"></span><span class="nome-c">${escapar(z.nome)}</span><span class="contas">${contas}</span></summary>
+      ${GRUPOS_SUGESTAO.filter(g => porGrupo[g.id]).map(g => `<div class="tipo-t">${g.icone} ${g.nome.replace(" companheiras", "")}</div><ul>${porGrupo[g.id].join('')}</ul>`).join('')}
+      ${conta.flor ? `<div class="sub nota">${STATUS.florindo.icone} ${conta.flor} florindo</div>` : ''}
+    </details>`);
   }
-  const grupo = (titulo, itens, vazio, aberto = true) => itens.length
-    ? `<details class="tarefas" ${aberto ? 'open' : ''}><summary>${titulo} <span class="qtd">${itens.length}</span></summary><ul>${itens.join('')}</ul></details>`
+  const grupo = (chave, titulo, itens, vazio, aberto = true) => itens.length
+    ? `<details class="tarefas" data-chave="${chave}" ${estaAberto(chave, aberto) ? 'open' : ''}><summary>${titulo} <span class="qtd">${itens.length}</span></summary><ul>${itens.join('')}</ul></details>`
     : (vazio ? `<div class="tarefas vazio-t">${titulo}: <span class="nota">${vazio}</span></div>` : '');
-
 
   const tb = tarefasDeBandeja(m, an);
   const mesAtual = new Date().getMonth() === mesSol;
   $('painelCal').innerHTML = htmlPrimeirosPassos() + htmlClima() + `
     <section>
+      <h2>Tarefas de ${MESES[mesSol].toLowerCase()}</h2>
+      ${canteiros.length || soCrescendo.length ? `<details class="tarefas" data-chave="canteiros" ${estaAberto('canteiros', true) ? 'open' : ''}>
+        <summary>🥬 Canteiros <span class="qtd">${canteiros.length}</span></summary>
+        ${canteiros.join('') || '<p class="nota">Nada a fazer nos canteiros este mês.</p>'}
+        ${soCrescendo.length ? `<p class="nota">${STATUS.crescendo.icone} Só crescendo: ${soCrescendo.join(', ')}</p>` : ''}
+      </details>` : '<div class="tarefas vazio-t">🥬 Canteiros: <span class="nota">nada a fazer</span></div>'}
+      ${grupo('livres', '🔵 Áreas livres', livres, '')}
+      ${(() => {
+        // Tudo da bandeja de mudas num grupo só
+        const partes = [
+          [mesAtual ? itensNaBandeja() : [], '🪴 Na bandeja agora'],
+          [tb.semearAgora, `${STATUS.bandeja.icone} Semear agora`],
+          [tb.preparar, '🧰 Preparar'],
+          [tb.proximos, '🗓️ Nos próximos meses'],
+          // sugestões separadas por tipo de planta, como nos canteiros
+          ...GRUPOS_SUGESTAO.map(g => [itensSugestaoBandeja(m, g.id), `${g.icone} ${g.nome.replace(' companheiras', '')}`]),
+        ].filter(([itens]) => itens.length);
+        if (!partes.length) return '';
+        const n = partes.reduce((s, [itens]) => s + itens.length, 0);
+        return `<details class="tarefas" data-chave="sugBandeja" ${estaAberto('sugBandeja', false) ? 'open' : ''}>
+          <summary>🌰 Bandeja de mudas <span class="qtd">${n}</span></summary>
+          ${partes.map(([itens, titulo]) => `<div class="tipo-t">${titulo}</div><ul>${itens.join('')}</ul>`).join('')}
+        </details>`;
+      })()}
+    </section>
+    <section class="acoes-horta">
       <button class="btn-sugerir" data-sugerir-plano="horta">✨ Sugerir plano para a horta toda</button>
       <div class="grade2"><button class="btn-compras" data-abrir-compras>🛒 Lista de compras</button>
       <button class="btn-compras" data-exportar-lembretes title="Baixa um arquivo .ics para o calendário do iPad, celular ou Google Agenda">📅 Lembretes</button></div>
       <button class="btn-limpar" data-abrir-limpar="horta">🧹 Limpar plantio…</button>
-      <h2>Tarefas de ${MESES[mesSol].toLowerCase()}</h2>
-      ${mesAtual ? grupo('🪴 Na bandeja agora', itensNaBandeja(), '') : ''}
-      ${grupo(`${STATUS.bandeja.icone} Semear na bandeja`, tb.semearAgora, 'nada')}
-      ${grupo('🧰 Preparar', tb.preparar, '')}
-      ${grupo(`${STATUS.plantar.icone} Plantar no canteiro`, plantar, 'nada')}
-      ${grupo(`${STATUS.colher.icone} Colher`, colher, 'nada')}
-      ${grupo('✂️ Cuidados', cuidados, '')}
-      ${grupo(`${STATUS.florindo.icone} Florindo`, florindo, '', false)}
-      ${grupo('⚠️ Atenção', atencao, '')}
-      ${grupo(`${STATUS.crescendo.icone} Crescendo`, crescendo, '', false)}
-      ${grupo('🔵 Áreas livres', livres, '')}
-      ${grupo('🗓️ Bandeja nos próximos meses', tb.proximos, '', false)}
-      ${grupo(`💡 Bom para semear na bandeja em ${MESES[mesSol].toLowerCase()}`, itensSugestaoBandeja(m), '', false)}
-    </section>
-    <section><p class="nota">Clique num canteiro do mapa (ou numa tarefa) para planejar o que plantar nele.</p></section>`;
+    </section>`;
 }
 
 function renderCalendario() {
@@ -264,6 +315,11 @@ function montarCalendario() {
     const s = ev.target.closest('[data-plantio-cal]');
     if (s) definirPlantio(Number(s.dataset.zona), s.dataset.plantioCal, s.value);
   };
+  // lembra quais grupos a pessoa abriu ou fechou (o painel é redesenhado o tempo todo)
+  $('painelCal').addEventListener('toggle', ev => {
+    const d = ev.target;
+    if (d.dataset && d.dataset.chave) abertoTarefas.set(d.dataset.chave, d.open);
+  }, true);
   for (const id of ['faixaMeses', 'areaAno', 'painelCal', 'zAno']) {
     $(id).addEventListener('click', clique);
     $(id).addEventListener('change', mudanca);

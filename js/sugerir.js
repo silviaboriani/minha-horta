@@ -175,9 +175,8 @@ function renderModalPlano() {
   $('modalPlanoCaixa').innerHTML = `
     <button class="fechar" data-plano="cancelar" title="Fechar">×</button>
     <h3>✨ Sugestão de plano ${pr.escopo === 'horta' ? 'para a horta toda' : `— ${escapar(pr.zonas[0].zona.nome)}`}</h3>
-    <p class="nota">Ordem de plantio para 12 meses a partir de <b>${MESES[pr.inicio - 1].toLowerCase()}</b>: plantas na época certa, com sol suficiente,
-      longe das geadas (as sensíveis), sem vizinhas que não combinam e ocupando o espaço livre ao longo do ano.
-      ${TXT.passe} sobre uma planta ✨ para ver por que ela foi escolhida.</p>
+    <p class="nota">Plano de 12 meses a partir de <b>${MESES[pr.inicio - 1].toLowerCase()}</b>: plantas na época certa, com sol suficiente, protegidas da geada, com boas vizinhas e usando o espaço livre.
+      ${TXT.passe} sobre uma ✨ para ver o motivo.</p>
     <div class="opcoes-plano">
       <label class="check"><input type="checkbox" data-op="manter" ${opcoesPlano.manter ? 'checked' : ''}> Manter as plantas que já estão</label>
       ${temFavoritos() ? `<label class="check"><input type="checkbox" data-op="lista" ${opcoesPlano.lista ? 'checked' : ''}> Só favoritos ★</label>` : ''}

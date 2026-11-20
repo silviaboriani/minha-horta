@@ -142,8 +142,9 @@ function sugestoesBandeja(m) {
   return res.sort((a, b) => (naLista(b.p.id) - naLista(a.p.id)) || (b.pontos - a.pontos)).slice(0, 6);
 }
 
-function itensSugestaoBandeja(m) {
-  return sugestoesBandeja(m).map(({ p, t, z }) =>
+// grupo = 'vegetais', 'ervas', 'flores'… (o mesmo das sugestões do canteiro); sem grupo = todas
+function itensSugestaoBandeja(m, grupo) {
+  return sugestoesBandeja(m).filter(s => !grupo || grupoDaPlanta(s.p) === grupo).map(({ p, t, z }) =>
     `<li><span class="e">${escapar(p.emoji)}</span><span><b>${escapar(p.nome)}</b>${naLista(p.id) ? ' <span class="estrela">★</span>' : ''}
       <div class="sub">semeie agora → muda pronta em ${MESES[t - 1].toLowerCase()} para o <b>${escapar(z.nome)}</b> (${diasBandeja(p).join('–')} dias)</div></span>
       <button class="btn-feito" data-planejar-bandeja="${escapar(p.id)}" data-zona="${z.id}" data-mes="${t}" title="Pôr no plano do ${escapar(z.nome)}">+</button></li>`);

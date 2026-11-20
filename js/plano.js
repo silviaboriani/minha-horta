@@ -389,6 +389,10 @@ function htmlSugestoes(z) {
 
 // Plantas da área que o usuário desligou no filtro de companheiras ("zona:id")
 const compDesligadas = new Set();
+const COMP_INICIAIS = 8;          // companheiras mostradas antes do "ver mais"
+const compTodas = new Set();      // canteiros com todas as companheiras à mostra
+const plantasAbertas = new Set(); // "zona|entrada" das plantas abertas (com todos os controles)
+let adicionarZona = null;         // canteiro com a parte "＋ Adicionar planta" aberta
 
 // Companheiras com base em TODAS as plantas da área (as ligadas no filtro)
 function htmlCompanheiras(z) {
@@ -420,7 +424,8 @@ function htmlCompanheiras(z) {
       title="${on ? 'Clique para ignorar esta planta nas sugestões' : 'Clique para considerar esta planta'}">${on ? '✓' : '○'} ${escapar(p.emoji)} ${escapar(p.nome)}</button>`;
   }).join('');
 
-  const chips = candidatas.map(({ q, boas }) => {
+  const todas = compTodas.has(z.id);
+  const chips = candidatas.slice(0, todas ? 999 : COMP_INICIAIS).map(({ q, boas }) => {
     const motivo = `combina com ${boas.map(nomePlanta).join(', ')}` +
       (cabe(q) ? '' : ` — fora de época ou sol curto agora (época: ${faixaMeses([...q.sem, ...q.tr])})`);
     return `<button class="chip-add ${cabe(q) ? '' : 'fora'}" data-add-planta="${escapar(q.id)}" title="${escapar(motivo)}">` +
@@ -431,29 +436,33 @@ function htmlCompanheiras(z) {
   return `<div class="companheiras">
     <div class="titulo">🤝 Combinam com o que já está aqui</div>
     <div class="filtros-comp">${filtro}</div>
-    <div class="chips">${!ativos.length ? '<span class="nota">Ligue pelo menos uma planta acima.</span>' : chips || '<span class="nota">Nenhuma companheira conhecida para essa combinação.</span>'}</div>
-    ${ativos.length > 1 && chips ? '<div class="nota">O número mostra com quantas das plantas marcadas ela combina. ' + TXT.passe + ' para ver quais.</div>' : ''}
-    ${viz.length && chips ? `<div class="nota">Também podem ir nas áreas vizinhas: ${viz.map(v => escapar(v.nome)).join(', ')}.</div>` : ''}
+    <div class="chips">${!ativos.length ? '<span class="nota">Ligue pelo menos uma planta acima.</span>' : chips || '<span class="nota">Nenhuma companheira conhecida para essa combinação.</span>'}
+      ${ativos.length && candidatas.length > COMP_INICIAIS ? `<button class="ver-mais" data-comp-todas>${todas ? '▲ Ver menos' : `▼ Ver mais ${candidatas.length - COMP_INICIAIS}`}</button>` : ''}</div>
+    ${ativos.length > 1 && chips ? '<div class="nota">O número = com quantas das marcadas ela combina (' + TXT.passe.toLowerCase() + ' para ver quais).</div>' : ''}
+    ${viz.length && chips ? `<div class="nota">Também servem nas vizinhas: ${viz.map(v => escapar(v.nome)).join(', ')}.</div>` : ''}
     ${evitar.size ? `<div class="evitar">🚫 Manter longe: ${[...evitar].map(nomePlanta).sort((a, b) => a.localeCompare(b, 'pt')).join(', ')}</div>` : ''}
   </div>`;
 }
 
-// Barra "quanto da área já está ocupado"
-function htmlOcupacao(info) {
-  const pct = Math.round(info.usado / info.area * 100);
-  const texto = info.usado <= 0
-    ? `Área: <b>${fmt(info.area, 1)} m²</b>. Digite quantos pés de cada planta, ou use as sugestões 💡.`
-    : info.excesso
-      ? `⚠️ Plantas demais: <b>${fmt(info.usado, 1)} m²</b> para uma área de ${fmt(info.area, 1)} m² (passou ${fmt(-info.livre, 1)} m²)`
-      : `Ocupado: <b>${fmt(info.usado, 1)} de ${fmt(info.area, 1)} m²</b> (${pct}%) · livre: ${fmt(info.livre, 1)} m²`;
-  const sit = situacaoEspaco(info.zonaId);
-  return `<div class="ocupacao ${info.excesso ? 'mal' : ''}">
-    ${sit ? `<div class="sit-linha ${sit.tipo}">${sit.icone} <b>${sit.tipo === 'cheio' ? 'Canteiro cheio' : sit.tipo === 'livre' ? 'Canteiro livre' : 'Cabe mais'}</b> em ${MESES[mesSol].toLowerCase()}${sit.tipo === 'espaco' ? ` — ~${fmt(sit.livre, 1)} m² livres` : ''}</div>` : ''}
-    <div class="barra"><span style="width:${Math.min(100, pct)}%"></span></div>
-    <div>${texto} <span class="nota">(em ${MESES[mesSol].toLowerCase()})</span></div>
-    ${info.mesesExcesso.length && !info.excesso ? `<div class="mal-txt">⚠️ Passa do espaço em ${faixaMeses(info.mesesExcesso)}</div>` : ''}
-    ${info.semQtd > 1 && info.livre > 0 ? '<button class="pequeno" data-preencher>💡 Usar as sugestões em todas</button>' : ''}
-  </div>`;
+// Faixa curta no topo: sol do mês, quanto está ocupado e o botão ✨ Sugerir
+function htmlResumoArea(z, info, st, cl) {
+  const linhaSol = cl ? `<span title="${estado.norteDefinido ? '' : 'O norte ainda não foi definido (aba Sol e sombra): horas aproximadas'}">${cl.icone} <b>${fmt(st.media, 1)} h</b> de sol · ${cl.nome}${estado.norteDefinido ? '' : '*'}</span>` : '<span></span>';
+  const sugerir = TIPOS_PLANO.includes(z.tipo) ? '<button class="btn-sugerir mini" data-sugerir-plano="zona" title="Sugerir plano para este canteiro">✨ Sugerir</button>' : '';
+  let ocup = '';
+  if (info && info.area) {
+    const pct = Math.round(info.usado / info.area * 100);
+    const sit = situacaoEspaco(info.zonaId);
+    const texto = info.usado <= 0
+      ? `${fmt(info.area, 1)} m² · vazio`
+      : info.excesso
+        ? `⚠️ plantas demais: ${fmt(info.usado, 1)} m² em ${fmt(info.area, 1)} m²`
+        : `${pct}% ocupado · ${fmt(info.livre, 1)} m² livres`;
+    ocup = `<div class="barra"><span style="width:${Math.min(100, pct)}%"></span></div>
+      <div class="sit-linha ${sit ? sit.tipo : ''}">${sit ? sit.icone + ' ' : ''}${texto}</div>
+      ${info.mesesExcesso.length && !info.excesso ? `<div class="mal-txt">⚠️ Passa do espaço em ${faixaMeses(info.mesesExcesso)}</div>` : ''}
+      ${info.semQtd > 1 && info.livre > 0 ? '<button class="pequeno" data-preencher>💡 Usar as quantidades sugeridas em todas</button>' : ''}`;
+  }
+  return `<div class="resumo-area ${info && info.excesso ? 'mal' : ''}"><div class="linha1">${linhaSol}${sugerir}</div>${ocup}</div>`;
 }
 
 function definirQuantidade(entrada, n) {
@@ -510,7 +519,7 @@ function htmlPosicao(z, x) {
   const tem = x.pos && x.pos.length;
   return `<div class="pos-linha">
     ${tem ? `<span>📍 ${fmt(x.posArea, 2)} m² marcados</span>` : ''}
-    <button class="pos-btn ${ativo ? 'on' : ''}" data-posicionar="${escapar(x.entrada)}" title="Pinte no mapa o lugar desta planta dentro do canteiro">${ativo ? '✓ Concluir' : tem ? '📍 mudar lugar' : '📍 marcar no canteiro'}</button>
+    <button class="pos-btn ${ativo ? 'on' : ''}" data-posicionar="${escapar(x.entrada)}" title="Pinte no mapa o lugar desta planta dentro do canteiro">${ativo ? '✓ Concluir' : tem ? '📍 Mudar lugar' : '📍 Marcar no canteiro'}</button>
     ${ativo ? `<button class="pos-btn ${apagandoPos ? 'on' : ''}" data-apagar-pos title="Apagar partes da posição">🧽 ${apagandoPos ? 'apagando' : 'apagar'}</button>` : ''}
     ${tem && !ativo ? `<button class="pos-btn" data-limpar-pos="${escapar(x.entrada)}" title="Tirar a posição">limpar</button>` : ''}
   </div>`;
@@ -629,42 +638,53 @@ function renderPlantio(z) {
   const st = an.sol[z.id];
   const cl = st ? classeSol(st.media) : null;
 
+  if (adicionarZona !== null && adicionarZona !== z.id) adicionarZona = null;
+  const abrirAdicionar = adicionarZona === z.id || !(z.plantas || []).length || !!buscaPlanta;
   const linhas = (info?.plantas || []).map(x => {
     const p = x.id && plantaPorId(x.id);
     const nivel = x.problemas.some(q => q.nivel === 'mal') ? 'mal' : x.problemas.some(q => q.nivel === 'atencao') ? 'atencao' : '';
     const e = escapar(x.entrada);
-    const qtdHtml = !p ? '' : x.pes
-      ? `<div class="qtd-linha">
-          <input type="number" min="0" step="1" class="qtd" data-qtd="${e}" value="${x.pes}" title="Quantos pés você quer plantar">
-          <span>${x.pes === 1 ? 'pé' : 'pés'} · ${fmt(x.pes * x.areaPe, 2)} m²</span>
-          <span class="max ${x.pes > x.maximo ? 'mal' : ''}">${x.pes > x.maximo ? `cabem só ${x.maximo}` : `cabem até ${x.maximo}`}</span>
-        </div>`
-      : `<div class="qtd-linha">
-          <input type="number" min="0" step="1" class="qtd" data-qtd="${e}" placeholder="${x.sugestao || 0}" title="Quantos pés você quer plantar">
-          <span>pés</span>
-          ${x.sugestao > 0 ? `<button class="usar" data-usar-sug="${e}" data-n="${x.sugestao}" title="Dividindo igualmente o espaço livre entre as plantas sem quantidade">💡 cabem ~${x.sugestao} — usar</button>` : ''}
-        </div>`;
-    // Quando planta, quando colhe e o que está fazendo no mês planejado
-    let cicloHtml = '';
+    // Cartão aberto: o que ela faz no mês, depois uma tabelinha (pés, mês, colheita) e os botões
+    let detalheHtml = '';
     if (p) {
       const colheita = [...x.ativos].filter(m => statusNoMes(p, x.inicio, m) === 'colher');
       const st = x.status ? STATUS[statusVisto(p, x.status)] : null;
-      cicloHtml = `<div class="ciclo-linha">
-        📅 plantar em <select data-plantio="${e}" title="Mês em que ela vai para o canteiro">${MESES_CURTOS.map((m, i) =>
-          `<option value="${i + 1}" ${i + 1 === x.inicio ? 'selected' : ''}>${m}${mesesDeIrProCanteiro(p).includes(i + 1) ? '' : ' ·'}</option>`).join('')}</select>
-        · ${ehFlor(p) ? 'flores' : 'colher'} ${p.perene ? 'a partir de ' + MESES_CURTOS[mesMais(x.inicio, cicloDe(p).c0) - 1] : faixaMeses(colheita)}
-        <div class="agora-st">${st ? `${st.icone} ${st.nome.toLowerCase()} em ${MESES[mesSol].toLowerCase()}` : `fora do canteiro em ${MESES[mesSol].toLowerCase()}`}
-          ${p.perene ? '' : `<button class="de-novo" data-sucessao="${e}" title="Adicionar outro plantio desta planta depois da colheita">🔁 plantar de novo</button>`}</div>
-      </div>
-      ${htmlPosicao(z, x)}`;
+      const pes = x.pes
+        ? `<input type="number" min="0" step="1" class="qtd" data-qtd="${e}" value="${x.pes}" title="Quantos pés você quer plantar">
+           <span>${fmt(x.pes * x.areaPe, 2)} m² · <span class="max ${x.pes > x.maximo ? 'mal' : ''}">${x.pes > x.maximo ? `cabem só ${x.maximo}` : `máx. ${x.maximo}`}</span></span>`
+        : `<input type="number" min="0" step="1" class="qtd" data-qtd="${e}" placeholder="${x.sugestao || 0}" title="Quantos pés você quer plantar">
+           ${x.sugestao > 0 ? `<button class="usar" data-usar-sug="${e}" data-n="${x.sugestao}" title="Dividindo igualmente o espaço livre entre as plantas sem quantidade">💡 usar ~${x.sugestao}</button>` : ''}`;
+      const mes = `<select data-plantio="${e}" title="Mês em que ela vai para o canteiro (“·” = fora da época)">${MESES_CURTOS.map((m, i) =>
+        `<option value="${i + 1}" ${i + 1 === x.inicio ? 'selected' : ''}>${m}${mesesDeIrProCanteiro(p).includes(i + 1) ? '' : ' ·'}</option>`).join('')}</select>`;
+      const fim = p.perene ? 'a partir de ' + MESES_CURTOS[mesMais(x.inicio, cicloDe(p).c0) - 1] : faixaMeses(colheita);
+      detalheHtml = `
+        <div class="agora-st">${st ? `${st.icone} ${st.nome} em ${MESES[mesSol].toLowerCase()}` : `Fora do canteiro em ${MESES[mesSol].toLowerCase()}`}</div>
+        <div class="grade-planta">
+          <span class="rot">Pés</span><span class="val">${pes}</span>
+          <span class="rot">Ciclo</span><span class="val" title="Mês de plantio → ${ehFlor(p) ? 'flores' : 'colheita'}">${mes} → ${ehFlor(p) ? '🌸' : '🧺'} ${fim}</span>
+        </div>
+        <div class="acoes-planta">
+          ${p.perene ? '' : `<button class="de-novo" data-sucessao="${e}" title="Adicionar outro plantio desta planta depois da colheita">🔁 Plantar de novo</button>`}
+          ${'' /* 📍 Marcar no canteiro: escondido por enquanto (htmlPosicao) */}
+        </div>`;
     }
-    return `<li class="${nivel} ${p && !x.status ? 'inativa' : ''}">
+    const chave = `${z.id}|${x.entrada}`;
+    const aberta = plantasAbertas.has(chave) || (posicionando && posicionando.zona === z.id && posicionando.entrada === x.entrada);
+    let resumo = '';
+    if (p) {
+      const colheita = [...x.ativos].filter(m => statusNoMes(p, x.inicio, m) === 'colher');
+      const fim = p.perene ? 'a partir de ' + MESES_CURTOS[mesMais(x.inicio, cicloDe(p).c0) - 1] : faixaMeses(colheita);
+      resumo = `${x.pes ? `${x.pes} ${x.pes === 1 ? 'pé' : 'pés'}` : '<i>sem quantidade</i>'} · ${MESES_CURTOS[x.inicio - 1]} → ${ehFlor(p) ? '🌸' : '🧺'} ${fim}`;
+    } else resumo = 'não está no catálogo';
+    const aviso = nivel === 'mal' ? '⛔' : nivel === 'atencao' ? '⚠️' : '';
+    const probs = x.problemas.filter(q => aberta || q.nivel === 'mal');
+    return `<li class="${nivel} ${p && !x.status ? 'inativa' : ''} ${aberta ? 'aberta' : 'fechada'}">
       <span class="e">${p ? escapar(p.emoji) : '✏️'}</span>
       <div class="n">
-        <div><b>${escapar(rotuloEntrada(z, x.entrada))}</b>${p ? '' : ' <span class="pes">(não está no catálogo)</span>'}</div>
-        ${qtdHtml}
-        ${cicloHtml}
-        ${x.problemas.map(q => `<div class="prob ${q.nivel}">${escapar(q.texto)}</div>`).join('')}
+        <button class="linha-planta" data-abrir-planta="${e}" title="${aberta ? 'Recolher' : 'Mostrar quantidade, mês e posição'}">
+          <b>${escapar(rotuloEntrada(z, x.entrada))}</b> ${aviso}${aberta && p ? '' : `<span class="resumo">${resumo}</span>`}<span class="seta">${aberta ? '▾' : '▸'}</span></button>
+        ${aberta ? detalheHtml : ''}
+        ${probs.map(q => `<div class="prob ${q.nivel}">${escapar(q.texto)}</div>`).join('')}
       </div>
       ${p ? `<button class="ver" data-ver-planta="${escapar(p.id)}" title="Ver no catálogo">ⓘ</button>` : ''}
       <button class="x" data-remover-planta="${escapar(x.entrada)}" title="Tirar desta área">×</button>
@@ -677,15 +697,15 @@ function renderPlantio(z) {
         <h4>Plantas desta área</h4>
         <span class="mes-plano">em ${MESES[mesSol].toLowerCase()}</span>
       </div>
-      ${cl ? `<div class="sol-area">${cl.icone} <b>${fmt(st.media, 1)} h</b> de sol por dia em ${MESES[mesSol].toLowerCase()} — ${cl.nome}
-        ${estado.norteDefinido ? '' : '<div class="nota">O norte ainda não foi definido (aba Sol e sombra) — as horas de sol são aproximadas.</div>'}</div>` : ''}
-      ${TIPOS_PLANO.includes(z.tipo) ? '<button class="btn-sugerir" data-sugerir-plano="zona">✨ Sugerir plano para este canteiro</button>' : ''}
-      ${info && info.area ? htmlOcupacao(info) : ''}
-      ${linhas ? `<ul class="plantas-area">${linhas}</ul><button class="btn-limpar" data-abrir-limpar="zona">🧹 Limpar este canteiro…</button>` : '<p class="nota">Nenhuma planta ainda. Escolha nas sugestões abaixo.</p>'}
-      ${htmlCompanheiras(z)}
-      <input type="search" class="busca-planta" data-busca-planta placeholder="🔍 Adicionar planta…" value="${escapar(buscaPlanta)}" autocomplete="off">
-      ${temFavoritos() ? `<label class="check"><input type="checkbox" data-so-lista ${soListaPlano ? 'checked' : ''}> Só favoritos ★</label>` : ''}
-      <div class="sugestoes" data-sugestoes>${htmlSugestoes(z)}</div>
+      ${htmlResumoArea(z, info, st, cl)}
+      ${linhas ? `<ul class="plantas-area">${linhas}</ul>` : '<p class="nota">Nenhuma planta ainda. Escolha nas sugestões abaixo.</p>'}
+      ${abrirAdicionar ? `<div class="adicionar">
+        ${linhas ? '<button class="btn-adicionar on" data-alternar-adicionar>＋ Adicionar planta ▾</button>' : ''}
+        ${htmlCompanheiras(z)}
+        <input type="search" class="busca-planta" data-busca-planta placeholder="🔍 Buscar planta…" value="${escapar(buscaPlanta)}" autocomplete="off">
+        ${temFavoritos() ? `<label class="check"><input type="checkbox" data-so-lista ${soListaPlano ? 'checked' : ''}> Só favoritos ★</label>` : ''}
+        <div class="sugestoes" data-sugestoes>${htmlSugestoes(z)}</div>
+      </div>` : '<button class="btn-adicionar" data-alternar-adicionar>＋ Adicionar planta ▸</button>'}
     </div>`;
 }
 
@@ -698,6 +718,7 @@ function adicionarPlanta(entrada) {
   // Mês de plantio: o mês planejado, ou o próximo mês bom para ela
   if (id) z.plantio[entrada] = inicioPadrao(plantaPorId(id), mesSol + 1);
   ultimaAdicionada = id ? { zona: z.id, id } : null;
+  plantasAbertas.add(`${z.id}|${entrada}`);
   buscaPlanta = '';
   mudou();
   // Avisa na hora se a escolha tem problema
@@ -709,6 +730,25 @@ function adicionarPlanta(entrada) {
 function montarPlano() {
   const box = $('zPlantio');
   box.addEventListener('click', ev => {
+    const ab = ev.target.closest('[data-abrir-planta]');
+    if (ab) {
+      const k = `${zonaAtiva}|${ab.dataset.abrirPlanta}`;
+      if (plantasAbertas.has(k)) plantasAbertas.delete(k); else plantasAbertas.add(k);
+      renderPlantio(zonaPorId(zonaAtiva));
+      return;
+    }
+    if (ev.target.closest('[data-alternar-adicionar]')) {
+      adicionarZona = adicionarZona === zonaAtiva ? null : zonaAtiva;
+      buscaPlanta = '';
+      renderPlantio(zonaPorId(zonaAtiva));
+      if (adicionarZona !== null) box.querySelector('[data-busca-planta]')?.focus({ preventScroll: true });
+      return;
+    }
+    if (ev.target.closest('[data-comp-todas]')) {
+      if (compTodas.has(zonaAtiva)) compTodas.delete(zonaAtiva); else compTodas.add(zonaAtiva);
+      renderPlantio(zonaPorId(zonaAtiva));
+      return;
+    }
     const add = ev.target.closest('[data-add-planta]');
     if (add) { adicionarPlanta(add.dataset.addPlanta); return; }
     const addT = ev.target.closest('[data-add-texto]');

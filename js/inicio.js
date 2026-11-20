@@ -92,20 +92,16 @@ function atualizarArquivo() {
 //  Boas-vindas (passo a passo)
 // ---------------------------------------------------------------------
 
-const POPULARES = ['alface', 'rucula', 'couve', 'cebolinha', 'salsinha', 'manjericao', 'coentro', 'hortela', 'alecrim',
-  'tomate', 'pimentao', 'pimentas', 'abobrinha', 'pepino', 'morango', 'cenoura', 'beterraba', 'rabanete',
-  'alho', 'cebola', 'feijao-vagem', 'milho-verde', 'girassol', 'tagetes', 'capuchinha'];
-
-const novo = { passo: 0, nome: 'Minha Horta', largura: 8, comprimento: 10, local: null, busca: '', resultados: [], plantas: new Set(), buscando: false };
+const novo = { passo: 0, nome: 'Minha Horta', largura: 8, comprimento: 10, local: null, busca: '', resultados: [], buscando: false };
 
 function abrirBoasVindas() {
-  Object.assign(novo, { passo: 0, nome: 'Minha Horta', largura: 8, comprimento: 10, local: null, busca: '', resultados: [], plantas: new Set() });
+  Object.assign(novo, { passo: 0, nome: 'Minha Horta', largura: 8, comprimento: 10, local: null, busca: '', resultados: [] });
   $('modalInicio').classList.remove('oculto');
   renderBoasVindas();
 }
 
 function renderBoasVindas() {
-  const passos = ['Boas-vindas', 'Nome', 'Lugar', 'Tamanho', 'Plantas'];
+  const passos = ['Boas-vindas', 'Nome', 'Lugar', 'Tamanho'];
   const barra = novo.passo ? `<div class="passos-barra">${passos.slice(1).map((p, i) =>
     `<span class="${i + 1 === novo.passo ? 'atual' : i + 1 < novo.passo ? 'feito' : ''}">${i + 1}. ${p}</span>`).join('')}</div>` : '';
   let corpo = '';
@@ -147,16 +143,11 @@ function renderBoasVindas() {
         <label>Comprimento <input class="bv-campo curto" data-bv-campo="comprimento" value="${fmt(novo.comprimento, 1)}"> m</label>
       </div>
       <div class="bv-ok">= ${fmt(novo.largura * novo.comprimento, 1)} m²</div>`;
-  } else if (novo.passo === 4) {
-    corpo = `<h2>O que você gostaria de plantar?</h2>
-      <p class="nota">Toque para escolher. Viram os seus favoritos ★ — as sugestões do app partem deles. Dá para mudar depois na aba Plantas.</p>
-      <div class="bv-plantas">${POPULARES.map(id => { const p = plantaPorId(id); return p ? `<button class="${novo.plantas.has(id) ? 'on' : ''}" data-bv="planta" data-id="${id}">${escapar(p.emoji)} ${escapar(p.nome)}</button>` : ''; }).join('')}</div>
-      <p class="nota">${novo.plantas.size} escolhida(s)</p>`;
   }
   const navegacao = novo.passo ? `<div class="bv-nav">
       <button data-bv="voltar">‹ Voltar</button>
       ${novo.passo === 2 && !novo.local ? '<button data-bv="pular" class="link">Pular por enquanto</button>' : ''}
-      <button class="principal" data-bv="${novo.passo === 4 ? 'criar' : 'avancar'}" ${novo.passo === 2 && !novo.local ? 'disabled' : ''}>${novo.passo === 4 ? '✓ Criar minha horta' : 'Continuar ›'}</button>
+      <button class="principal" data-bv="${novo.passo === 3 ? 'criar' : 'avancar'}" ${novo.passo === 2 && !novo.local ? 'disabled' : ''}>${novo.passo === 3 ? '✓ Criar minha horta' : 'Continuar ›'}</button>
     </div>` : '';
   $('inicioCaixa').innerHTML = barra + corpo + navegacao;
   const campo = $('inicioCaixa').querySelector('.bv-campo');
@@ -178,7 +169,6 @@ async function buscarCidade() {
 function criarHortaNova() {
   if (estado.zonas.length || estado.diario.length) guardarProjetoAtual();
   const e = estadoVazio({ nome: novo.nome.trim() || 'Minha Horta', largura: novo.largura, comprimento: novo.comprimento, local: novo.local });
-  e.minhaLista = [...novo.plantas];
   $('modalInicio').classList.add('oculto');
   trocarDeProjeto(migrar(e));
   alternarDesenho(true);
@@ -242,12 +232,6 @@ function montarBoasVindas() {
         renderBoasVindas();
       }, () => avisar('Não foi possível obter a localização. Busque pela cidade ou digite as coordenadas.'));
     }
-    else if (a === 'planta') {
-      const id = b.dataset.id;
-      if (novo.plantas.has(id)) novo.plantas.delete(id); else novo.plantas.add(id);
-      b.classList.toggle('on');
-      caixa.querySelector('.bv-plantas + .nota').textContent = `${novo.plantas.size} escolhida(s)`;
-    }
     else if (a === 'criar') criarHortaNova();
   });
 
@@ -276,7 +260,6 @@ function passosIniciais() {
     { id: 'canteiros', feito: plantaveis.length > 0, texto: '✏️ Desenhe os canteiros', ir: 'desenho' },
     { id: 'norte', feito: estado.norteDefinido, texto: '🧭 Mostre onde fica o norte', ir: 'sol' },
     { id: 'sombra', feito: estado.objetos.length > 0 || estado.inicio?.semArvores, texto: '🌳 Marque árvores e construções que fazem sombra', ir: 'sol', semArvores: true },
-    { id: 'lista', feito: estado.minhaLista.length >= 3, texto: '★ Escolha suas plantas favoritas', ir: 'plantas' },
     { id: 'plano', feito: plantaveis.some(z => (z.plantas || []).length), texto: '🌱 Planeje os canteiros (ou use ✨ Sugerir plano)', ir: 'plano' },
     { id: 'diario', feito: estado.diario.length > 0, texto: '📔 Faça o primeiro registro no diário', ir: 'diario' },
   ];

@@ -77,22 +77,21 @@
       </section>
 
       <section data-modo="mapa" data-desenho="nao" class="legenda-cal-lateral">
-        <h2>Legenda</h2>
-        <p class="nota">Escolha o mês no topo do mapa. Cada canteiro mostra o que está acontecendo nele:</p>
+        <h2>Legenda <button class="info-btn" data-info title="O que é isto?" aria-label="Explicação">ⓘ</button></h2>
+        <p class="info-texto">Escolha o mês no topo do mapa (no teclado: ← e →). Toque num canteiro para escolher as plantas e o mês de plantio; toque fora para ver as tarefas do mês.</p>
         <ul class="legenda-lista">
-          <li>🌰 <b>Semear na bandeja</b> — mudas, semanas antes de plantar (cada planta tem seu tempo)</li>
-          <li>🌱 <b>Plantar</b> no canteiro</li>
-          <li>🪴 <b>Crescendo</b></li>
-          <li>🧺 <b>Colher</b></li>
-          </ul>
-        <p class="nota" style="margin:6px 0 4px">Situação de cada canteiro no mês:</p>
-        <ul class="legenda-lista">
-          <li>🟢 <b>Cheio</b> — bem aproveitado</li>
-          <li>🟡 <b>Cabe mais</b> — ainda tem espaço</li>
-          <li>🔵 <b>Livre</b> — vazio no mês</li>
-          <li>⚠️ <b>Problema</b> — em vermelho</li>
+          <li>🌰 Semear na bandeja</li>
+          <li>🌱 Plantar no canteiro</li>
+          <li>🪴 Crescendo</li>
+          <li>🧺 Colher</li>
         </ul>
-        <p class="nota">Clique num canteiro para escolher as plantas e o mês de plantio de cada uma. Clique fora para ver as tarefas do mês. Use ← e → no teclado para trocar de mês.</p>
+        <p class="nota" style="margin:6px 0 4px">Canteiro no mês:</p>
+        <ul class="legenda-lista">
+          <li>🟢 Cheio</li>
+          <li>🟡 Cabe mais</li>
+          <li>🔵 Livre</li>
+          <li>⚠️ Problema</li>
+        </ul>
       </section>
 
       <section data-modo="mapa sol">
@@ -109,7 +108,6 @@
       <section id="secFormas" data-modo="mapa" data-desenho="sim" class="form">
         <div id="opcoesForma">
           <label>Ao desenhar, criar <select id="tipoForma"></select></label>
-          <p class="nota">Arraste no vazio (ou em cima do caminho) para criar. Arraste uma área para mover; puxe os quadradinhos laranja para mudar o tamanho. <b>Ctrl+D</b> duplica.</p>
         </div>
         <div id="opcoesFileira" class="oculto">
           <div class="grade2">
@@ -137,9 +135,9 @@
       </section>
 
       <section class="sec-zonas" data-modo="sol">
-        <h2>Árvores e construções</h2>
+        <h2>Árvores e construções <button class="info-btn" data-info title="O que é isto?" aria-label="Explicação">ⓘ</button></h2>
+        <p class="info-texto">Marque tudo o que faz sombra na horta, mesmo fora do terreno (árvore do vizinho, casa, galpão).</p>
         <ul id="listaObjetos" class="lista-zonas"></ul>
-        <p class="nota" style="margin-top:10px">Marque tudo o que pode fazer sombra na horta — dentro ou fora do terreno (árvore do vizinho, casa, galpão).</p>
       </section>
     </aside>
 
@@ -169,7 +167,7 @@
 
       <!-- ======== Modo Sol e sombra ======== -->
       <section data-modo="sol">
-        <h2>1 · Onde fica a horta <span class="ok" id="okLocal"></span></h2>
+        <h2>1 · Onde fica a horta <span class="ok" id="okLocal"></span> <button class="info-btn" data-info title="O que é isto?" aria-label="Explicação">ⓘ</button></h2>
         <div class="form">
           <label>Cidade <input id="sCidade"></label>
           <div class="grade2 alinhar-base">
@@ -180,12 +178,13 @@
             <button id="btnGeo" title="Pede a localização ao navegador">📍 Usar minha localização</button>
           </div>
         </div>
-        <p class="nota" id="sHemisferio"></p>
+        <p class="info-texto" id="sHemisferio"></p>
       </section>
 
       <section data-modo="sol">
-        <h2>2 · Onde fica o norte <span class="ok" id="okNorte"></span></h2>
-        <p class="aviso-inline" id="avisoNorte">Ainda não definido. Arraste a agulha vermelha até o norte verdadeiro, ou use os botões.</p>
+        <h2>2 · Onde fica o norte <span class="ok" id="okNorte"></span> <button class="info-btn" data-info title="O que é isto?" aria-label="Explicação">ⓘ</button></h2>
+        <p class="info-texto">Na horta, abra o app <b>Bússola</b> com o aparelho virado para o “topo” do mapa. O ângulo que aparecer é o quanto o norte está girado.</p>
+        <p class="aviso-inline" id="avisoNorte">Ainda não definido. Gire a agulha vermelha até o norte, ou use os botões.</p>
         <div class="bussola-linha">
           <canvas id="bussola" title="Arraste para girar"></canvas>
           <div class="botoes-norte">
@@ -196,7 +195,6 @@
           </div>
         </div>
         <label class="faixa">Ajuste fino <input type="range" id="sNorte" min="0" max="355" step="5"> <span id="sNorteTxt"></span></label>
-        <p class="nota">Dica: fique na horta segurando o celular ou iPad com o app <b>Bússola</b>, virado para o lado que é o “topo” do seu mapa. O ângulo que aparecer é o quanto o norte está girado.</p>
       </section>
 
       <section data-modo="sol" id="formObjeto" class="form oculto">
@@ -220,7 +218,8 @@
       </section>
 
       <section data-modo="sol">
-        <h2>3 · Sol em cada área</h2>
+        <h2>3 · Sol em cada área <button class="info-btn" data-info title="O que é isto?" aria-label="Explicação">ⓘ</button></h2>
+        <p class="info-texto">Horas de sol direto num dia típico do mês, contando árvores, construções, muros e a sombra pintada. <b>Sol pleno</b>: 6 h ou mais · <b>meia-sombra</b>: 3 a 6 h · <b>sombra</b>: menos de 3 h. Compare dezembro e junho para ver a diferença entre verão e inverno.</p>
         <div class="grade2 alinhar-base form">
           <label>Mês <select id="sMes"></select></label>
           <label class="check"><input type="checkbox" id="sMostrar" checked> Mostrar no mapa</label>
@@ -235,29 +234,35 @@
           <thead><tr><th>Área</th><th>Sol por dia</th><th>Manhã / tarde</th></tr></thead>
           <tbody id="tabSol"></tbody>
         </table>
-        <p class="nota" style="margin-top:10px">Horas de sol direto num dia típico do mês, considerando árvores, construções, muros e a sombra pintada à mão. <b>Sol pleno</b>: 6 h ou mais · <b>meia-sombra</b>: 3 a 6 h · <b>sombra</b>: menos de 3 h. Compare dezembro e junho para ver a diferença entre verão e inverno.</p>
       </section>
 
       <!-- ======== Modo Mapa ======== -->
       <section id="secZona" data-modo="mapa">
         <h2>Área selecionada</h2>
-        <p id="semZona" class="vazio">Clique numa área da lista à esquerda, ou use a ferramenta <b>Selecionar</b> e clique no mapa.</p>
+        <p id="semZona" class="vazio">Toque numa área do mapa ou da lista à esquerda.</p>
         <div id="formZona" class="form">
+          <details id="zDetalhes" class="z-detalhes">
+          <summary id="zResumo"></summary>
           <label>Nome <input id="zNome"></label>
           <div class="grade2">
             <label>Tipo <select id="zTipo"></select></label>
             <label>Cor <input type="color" id="zCor"></label>
           </div>
           <label>Categoria <select id="zGrupo"></select></label>
-          <label id="zAlturaLinha">Altura (m) <small>— usada para calcular a sombra</small>
+          <label id="zAlturaLinha">Altura (m) <small>(para a sombra)</small>
             <input id="zAltura" inputmode="decimal">
           </label>
           <div class="medidas" id="zMedidas"></div>
+          </details>
           <div id="zPlantio"></div>
-          <div id="zAno"></div>
           <div id="zMedidasExatas"></div>
-          <button id="zDuplicar" data-desenho="sim" title="Ctrl+D">⧉ Duplicar (sem as plantas)</button>
-          <button id="zExcluir" class="perigo">🗑 Deletar esta área <small>(Del)</small></button>
+          <details id="zMais" class="z-mais">
+            <summary>⋯ Mais</summary>
+            <div id="zAno"></div>
+            <button id="zLimpar" class="btn-limpar" data-abrir-limpar="zona">🧹 Limpar este canteiro…</button>
+            <button id="zDuplicar" data-desenho="sim" title="Ctrl+D">⧉ Duplicar (sem as plantas)</button>
+            <button id="zExcluir" class="perigo">🗑 Deletar esta área <small>(Del)</small></button>
+          </details>
         </div>
       </section>
 
@@ -283,7 +288,7 @@
       </div>
         <section>
           <h2>Projeto e arquivo</h2>
-          <p class="nota">Tudo é salvo automaticamente neste navegador. Para guardar uma cópia ou levar para outro aparelho, exporte o arquivo.</p>
+          <p class="nota">Tudo fica salvo neste aparelho. Exporte o arquivo para ter uma cópia ou levar a outro aparelho.</p>
           <div class="botoes">
             <button id="btnNovoProjeto" class="principal">🌱 Novo projeto</button>
             <button id="btnExportar">⬇ Exportar arquivo</button>

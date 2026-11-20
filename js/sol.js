@@ -16,13 +16,13 @@ const TIPOS_COM_ALTURA = ['muro', 'composteira', 'outro'];
 
 const FERRAMENTAS_SOL = [
   { id: 'objeto', icone: '👆', nome: 'Selecionar', tecla: 'V',
-    dica: 'Clique numa árvore ou construção para editar. Arraste para mover.' },
+    dica: `${TXT.clique} numa árvore ou construção para editar; arraste para mover.` },
   { id: 'arvore', icone: '🌳', nome: 'Árvore', tecla: 'A',
-    dica: 'Clique onde fica a árvore — pode ser fora do terreno, no vizinho.' },
+    dica: `${TXT.clique} onde fica a árvore (pode ser fora do terreno).` },
   { id: 'construcao', icone: '🏠', nome: 'Construção', tecla: 'C',
-    dica: 'Arraste para desenhar uma casa, galpão ou muro alto — pode ser fora do terreno.' },
+    dica: 'Arraste para desenhar uma casa, galpão ou muro alto (pode ser fora do terreno).' },
   { id: 'meiaSombra', icone: '🌥️', nome: 'Meia-sombra', tecla: 'M',
-    dica: 'Pinte onde você já viu que fica na sombra parte do dia.' },
+    dica: 'Pinte onde fica na sombra parte do dia.' },
   { id: 'sombraTotal', icone: '☁️', nome: 'Sombra', tecla: 'S',
     dica: 'Pinte onde quase nunca bate sol.' },
   { id: 'limparSombra', icone: '🧽', nome: 'Apagar sombra', tecla: 'E',
@@ -659,8 +659,8 @@ function atualizarPaineisSol() {
   const lat = estado.local.lat;
   $('okLocal').textContent = Number.isFinite(lat) ? '✓' : '';
   $('sHemisferio').innerHTML = lat < 0
-    ? 'Hemisfério <b>sul</b>: o sol passa pelo lado <b>norte</b> do céu. Árvores e muros ao <b>norte</b> dos canteiros são os que mais fazem sombra, principalmente no inverno.'
-    : 'Hemisfério <b>norte</b>: o sol passa pelo lado <b>sul</b> do céu. Árvores e muros ao <b>sul</b> dos canteiros são os que mais fazem sombra.';
+    ? 'Hemisfério <b>sul</b>: o sol passa pelo lado <b>norte</b> do céu. O que fica ao <b>norte</b> dos canteiros faz mais sombra, principalmente no inverno.'
+    : 'Hemisfério <b>norte</b>: o sol passa pelo lado <b>sul</b> do céu. O que fica ao <b>sul</b> dos canteiros faz mais sombra.';
 
   // 2. Norte
   set('sNorte', estado.norteGraus);
@@ -711,7 +711,7 @@ function atualizarPaineisSol() {
       <td><span class="pilula" style="background:${corHoras(s.media)};color:${s.media < 2.5 ? '#fff' : '#2b2b27'}" title="${cl.nome}">${cl.icone} ${fmt(s.media, 1)} h</span></td>
       <td class="mt">${fmt(s.manha, 1)} / ${fmt(s.tarde, 1)}</td>
     </tr>`;
-  }).join('') : '<tr><td class="vazio">Desenhe canteiros na aba Mapa.</td></tr>';
+  }).join('') : '<tr><td class="vazio">Desenhe canteiros na aba Horta.</td></tr>';
 }
 
 function trocarModo(m) {

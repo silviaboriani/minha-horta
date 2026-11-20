@@ -38,7 +38,7 @@ function renderLimpar() {
   $('modalGeralCaixa').innerHTML = `
     <button class="fechar" data-limpar="fechar" title="Fechar">×</button>
     <h3>🧹 Limpar plantio</h3>
-    <p class="nota">Tira as plantas dos canteiros — o desenho da horta, o catálogo e o diário continuam. Dá para desfazer com Ctrl+Z.</p>
+    <p class="nota">Tira as plantas dos canteiros. O desenho, o catálogo e o diário ficam. Dá para desfazer (↶).</p>
     <div class="grupo-op"><div class="rotulo">Onde</div>
       ${radio('escopo', 'horta', 'Na horta toda')}
       ${z ? radio('escopo', 'zona', `Só em ${escapar(z.nome)}`) : ''}

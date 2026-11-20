@@ -761,9 +761,6 @@ button.grande { padding: 12px 16px; font-size: 15px; font-weight: 600; }
 .bv-resultados { list-style: none; padding: 0; margin: 0 0 10px; display: grid; gap: 4px; }
 .bv-resultados button { width: 100%; text-align: left; }
 .bv-ok { background: #ebfbee; color: #2b8a3e; border-radius: 8px; padding: 8px 12px; font-size: 14px; margin: 6px 0; }
-.bv-plantas { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
-.bv-plantas button { border-radius: 99px; padding: 5px 12px; }
-.bv-plantas button.on { background: var(--verde); border-color: var(--verde); color: #fff; }
 .bv-nav { display: flex; justify-content: space-between; gap: 8px; margin-top: 18px; }
 .bv-nav .principal { margin-left: auto; }
 button.link { border: 0; background: none; color: var(--suave); text-decoration: underline; padding: 4px 6px; }
@@ -935,3 +932,88 @@ body { grid-template-columns: minmax(0, 1fr); }
   .abas button { padding: 6px 10px; }
   .topo button { white-space: nowrap; }
 }
+
+/* ===== Painel da direita mais enxuto ===== */
+/* Detalhes do canteiro (nome, tipo, cor…) recolhidos numa linha */
+.z-detalhes > summary { display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer;
+  list-style: none; padding: 6px 8px; border-radius: 6px; background: #f6f6f1; font-size: 13.5px; }
+.z-detalhes > summary::-webkit-details-marker { display: none; }
+.z-detalhes > summary .editar { font-size: 11.5px; color: var(--suave); white-space: nowrap; }
+.z-detalhes[open] > summary { margin-bottom: 8px; }
+.z-detalhes[open] > summary .editar { visibility: hidden; }
+/* Faixa: sol + ocupação + ✨ */
+.resumo-area { background: #f8f7f2; border-radius: 6px; padding: 6px 9px; font-size: 12.5px; margin-bottom: 8px; line-height: 1.4; }
+.resumo-area.mal { background: #fff5f5; color: #a61e1e; }
+.resumo-area .linha1 { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.resumo-area .barra { height: 5px; border-radius: 3px; background: #e4e2d8; overflow: hidden; margin: 5px 0 3px; }
+.resumo-area .barra span { display: block; height: 100%; background: var(--verde); border-radius: 3px; }
+.resumo-area.mal .barra span { background: #e03131; }
+.resumo-area .sit-linha { margin: 0; font-size: 12px; }
+.resumo-area button.pequeno { margin-top: 4px; }
+.btn-sugerir.mini { width: auto; margin: 0; padding: 3px 10px; font-size: 12px; white-space: nowrap; }
+/* Plantas: uma linha, abre ao tocar */
+.plantas-area li.fechada { padding-top: 4px; padding-bottom: 4px; }
+.plantas-area button.linha-planta { display: block; width: 100%; text-align: left; padding: 0; font-size: 13px; color: var(--texto, #222); }
+.plantas-area button.linha-planta:hover { background: none; color: var(--verde); }
+.plantas-area .linha-planta .resumo { display: block; font-size: 11.5px; color: var(--suave); }
+.plantas-area button.linha-planta { position: relative; padding-right: 14px; }
+.plantas-area .linha-planta .seta { position: absolute; right: 0; top: 1px; color: var(--suave); font-size: 11px; }
+.plantas-area li.aberta .linha-planta { margin-bottom: 4px; }
+/* ＋ Adicionar planta */
+.btn-adicionar { width: 100%; margin: 2px 0 8px; font-weight: 600; }
+.btn-adicionar.on { background: #ebfbee; border-color: #8ce99a; }
+.adicionar .ver-mais { margin-top: 4px; }
+/* ⋯ Mais */
+.z-mais { margin-top: 10px; border-top: 1px solid #ecebe4; padding-top: 6px; }
+.z-mais > summary { cursor: pointer; color: var(--suave); font-size: 13px; padding: 4px 0; }
+.z-mais[open] > summary { margin-bottom: 6px; }
+.z-mais > button { display: block; width: 100%; margin-bottom: 6px; }
+/* Tarefas por canteiro e por tipo de planta */
+.canteiro-t > summary { display: flex; align-items: center; gap: 6px; list-style: none; padding: 6px 4px; border-bottom: 1px solid #f0efe8; }
+.canteiro-t > summary::-webkit-details-marker { display: none; }
+.canteiro-t > summary::before { content: '▸'; color: var(--suave); font-size: 11px; width: 10px; }
+.canteiro-t[open] > summary::before { content: '▾'; }
+.canteiro-t .amostra { width: 10px; height: 10px; border-radius: 3px; flex: none; border: 1px solid rgba(0,0,0,.15); }
+.canteiro-t .nome-c { flex: 1; min-width: 0; }
+.canteiro-t .contas { font-size: 11.5px; font-weight: 500; color: var(--suave); white-space: nowrap; }
+.canteiro-t .tipo-t { font-size: 11.5px; font-weight: 650; color: var(--suave); margin: 6px 0 0 16px; }
+.canteiro-t ul { margin-left: 12px; }
+.tarefas li .t { flex: 1; min-width: 0; }
+.tarefas .sub-t { display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: 11.5px; color: var(--suave); }
+.tarefas .sub-t.feito { opacity: .6; }
+.tarefas .sub-t .btn-feito, .tarefas .sub-t .feito { flex: none; }
+/* Tempo numa linha */
+.clima-det > summary { cursor: pointer; font-size: 13px; padding: 2px 0; }
+.clima-det[open] > summary { margin-bottom: 6px; }
+.linha-clima { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+.sec-clima .alerta-clima { margin-top: 6px; }
+.tarefas > .tipo-t { font-size: 11.5px; font-weight: 650; color: var(--suave); margin: 6px 0 0 4px; }
+.tarefas > .canteiro-t { margin: 0 0 0 6px; }
+.acoes-horta { margin-top: 4px; }
+
+/* ⓘ: explicação de cada seção, aberta só quando a pessoa pede */
+.info-btn { border: 0; background: none; padding: 0 4px; margin-left: 2px; font-size: 14px; line-height: 1; color: var(--suave);
+  cursor: pointer; vertical-align: middle; text-transform: none; letter-spacing: 0; font-weight: 400; }
+.info-btn:hover, .info-btn.on { color: var(--verde); background: none; }
+html.toque .info-btn { padding: 4px 8px; font-size: 16px; }
+.info-texto { display: none; font-size: 12px; line-height: 1.45; color: #4a4a40; background: #f3f8ef; border-radius: 6px; padding: 7px 10px; margin: 0 0 8px; }
+.info-texto.aberto { display: block; }
+.nota:empty { display: none; }
+/* Cartão da planta aberto: situação no mês, tabelinha e botões */
+.plantas-area .agora-st { font-size: 12px; color: #3d6e46; margin: 1px 0 6px; }
+.grade-planta { display: grid; grid-template-columns: auto 1fr; gap: 5px 10px; align-items: center; font-size: 12px; margin-bottom: 7px; }
+.grade-planta .rot { color: var(--suave); }
+.grade-planta .val { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; color: #3a3a32; }
+.grade-planta input.qtd { width: 54px; padding: 3px 6px; }
+.grade-planta select { padding: 2px 4px; }
+.grade-planta .max { color: var(--suave); }
+.grade-planta .max.mal { color: #c92a2a; font-weight: 600; }
+.plantas-area .grade-planta button.usar { font-size: 11.5px; padding: 2px 8px; border: 1px solid #ffe066; border-radius: 99px; background: #fff9db; color: #7a5b00; }
+.acoes-planta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.acoes-planta .pos-linha { display: contents; }
+.plantas-area .acoes-planta button.de-novo, .plantas-area .acoes-planta button.pos-btn {
+  font-size: 11.5px; padding: 3px 9px; border-radius: 99px; border: 1px solid #d8d5c8; background: #fff; color: #3a3a32; }
+.plantas-area .acoes-planta button.de-novo:hover { background: #ebfbee; }
+.grade-planta select { width: auto; flex: none; }
+.grade-planta input.qtd { flex: none; }
+.grade-planta .val { flex-wrap: nowrap; white-space: nowrap; }
