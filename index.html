@@ -76,6 +76,31 @@
         <p class="nota" id="notaDesenho"></p>
       </section>
 
+      <section data-modo="mapa sol" id="secFerramentas">
+        <h2>Ferramentas</h2>
+        <div class="ferramentas" id="ferramentas"></div>
+        <div class="linha-pincel" id="linhaPincel">
+          <span>Tamanho do pincel</span>
+          <div class="seg" id="tamPincel">
+            <button data-t="1">1</button><button data-t="2">2</button><button data-t="3">3</button><button data-t="5">5</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="secFormas" data-modo="mapa" data-desenho="sim" class="form">
+        <div id="opcoesForma">
+          <label>Ao desenhar, criar <select id="tipoForma"></select></label>
+        </div>
+        <button id="btnFileira" title="Vários canteiros iguais, em fileira">▦ Criar vários canteiros…</button>
+        <button id="btnCaminhos" title="Todo o espaço vazio do terreno vira caminho">👣 Preencher caminhos no espaço vazio</button>
+      </section>
+
+      <section class="sec-zonas" data-modo="mapa">
+        <h2>Áreas</h2>
+        <ul id="listaZonas" class="lista-zonas"></ul>
+        <button id="btnNovoGrupo" class="link novo-grupo" title="Um grupo junta áreas na lista (ex.: Horta da frente, Frutíferas)">＋ Novo grupo</button>
+      </section>
+
       <section data-modo="mapa" data-desenho="nao" class="legenda-cal-lateral">
         <h2>Legenda <button class="info-btn" data-info title="O que é isto?" aria-label="Explicação">ⓘ</button></h2>
         <p class="info-texto">Escolha o mês no topo do mapa (no teclado: ← e →). Toque num canteiro para escolher as plantas e o mês de plantio; toque fora para ver as tarefas do mês.</p>
@@ -92,46 +117,6 @@
           <li>🔵 Livre</li>
           <li>⚠️ Problema</li>
         </ul>
-      </section>
-
-      <section data-modo="mapa sol">
-        <h2>Ferramentas</h2>
-        <div class="ferramentas" id="ferramentas"></div>
-        <div class="linha-pincel" id="linhaPincel">
-          <span>Tamanho do pincel</span>
-          <div class="seg" id="tamPincel">
-            <button data-t="1">1</button><button data-t="2">2</button><button data-t="3">3</button><button data-t="5">5</button>
-          </div>
-        </div>
-      </section>
-
-      <section id="secFormas" data-modo="mapa" data-desenho="sim" class="form">
-        <div id="opcoesForma">
-          <label>Ao desenhar, criar <select id="tipoForma"></select></label>
-        </div>
-        <div id="opcoesFileira" class="oculto">
-          <div class="grade2">
-            <label>Quantos <input id="fN" type="number" min="1" max="20"></label>
-            <label>Tipo <select id="fTipo"></select></label>
-            <label>Largura (m) <input id="fLarg" inputmode="decimal"></label>
-            <label>Comprimento (m) <input id="fComp" inputmode="decimal"></label>
-            <label>Corredor (m) <input id="fEsp" inputmode="decimal"></label>
-            <label>Direção <select id="fDir"><option value="lado">Lado a lado →</option><option value="embaixo">Um embaixo do outro ↓</option></select></label>
-          </div>
-          <p class="nota" id="notaFileira">Mova o mouse no mapa para ver a fileira e clique para colocar.</p>
-        </div>
-        <button id="btnCaminhos" title="Todo o espaço vazio do terreno vira caminho">👣 Preencher caminhos no espaço vazio</button>
-      </section>
-
-      <section class="sec-zonas" data-modo="mapa">
-        <h2>Áreas
-          <span class="botoes-h2">
-            <button id="btnNovoGrupo" class="pequeno" title="Criar uma categoria para agrupar áreas">+ Categoria</button>
-            <button id="btnNovaZona" class="pequeno principal">+ Nova</button>
-          </span>
-        </h2>
-        <div id="menuNovaZona" class="menu oculto"></div>
-        <ul id="listaZonas" class="lista-zonas"></ul>
       </section>
 
       <section class="sec-zonas" data-modo="sol">
@@ -239,6 +224,7 @@
       <!-- ======== Modo Mapa ======== -->
       <section id="secZona" data-modo="mapa">
         <h2>Área selecionada</h2>
+        <div id="zMulti" class="z-multi oculto"></div>
         <p id="semZona" class="vazio">Toque numa área do mapa ou da lista à esquerda.</p>
         <div id="formZona" class="form">
           <details id="zDetalhes" class="z-detalhes">
@@ -248,7 +234,7 @@
             <label>Tipo <select id="zTipo"></select></label>
             <label>Cor <input type="color" id="zCor"></label>
           </div>
-          <label>Categoria <select id="zGrupo"></select></label>
+          <label>Grupo <select id="zGrupo"></select></label>
           <label id="zAlturaLinha">Altura (m) <small>(para a sombra)</small>
             <input id="zAltura" inputmode="decimal">
           </label>
@@ -294,6 +280,7 @@
             <button id="btnExportar">⬇ Exportar arquivo</button>
             <button id="btnImportar">⬆ Abrir arquivo</button>
             <button id="btnImagem">🖼 Salvar imagem</button>
+            <button id="btnMostrarPassos" data-passo="mostrar" class="oculto">👣 Mostrar primeiros passos</button>
             <button id="btnExemplo">↺ Restaurar exemplo</button>
             <button id="btnZerar" class="perigo">Começar do zero</button>
           </div>

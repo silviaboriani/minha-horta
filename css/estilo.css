@@ -1017,3 +1017,37 @@ html.toque .info-btn { padding: 4px 8px; font-size: 16px; }
 .grade-planta select { width: auto; flex: none; }
 .grade-planta input.qtd { flex: none; }
 .grade-planta .val { flex-wrap: nowrap; white-space: nowrap; }
+
+.primeiros-passos h2 { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.primeiros-passos .fechar-passos { border: 0; background: none; padding: 2px 4px; font-size: 11.5px; color: var(--suave);
+  text-transform: none; letter-spacing: 0; font-weight: 500; white-space: nowrap; cursor: pointer; }
+.primeiros-passos .fechar-passos:hover { color: var(--perigo); background: none; }
+html.toque .primeiros-passos .fechar-passos { padding: 6px 8px; font-size: 12.5px; }
+.primeiros-passos .qtd { white-space: nowrap; }
+
+/* Várias áreas selecionadas (modo desenho) */
+.z-multi { background: #e7f5ff; border-radius: 6px; padding: 8px 10px; margin-bottom: 8px; font-size: 13px; }
+.z-multi .nota { margin: 4px 0; }
+.z-multi .grade2 { margin-top: 6px; }
+#formZona.multi { display: none; }
+
+/* Janela "Criar vários canteiros" */
+.fil-previa { display: flex; justify-content: center; align-items: center; min-height: 70px; background: #f8f7f2; border-radius: 8px; padding: 10px; margin: 10px 0 4px; }
+.fil-previa svg { width: 100%; height: auto; }
+#btnFileira { width: 100%; margin-bottom: 6px; }
+
+/* Lista de áreas: grupos */
+.novo-grupo { display: block; margin: 6px 0 0 2px; font-size: 12.5px; }
+.lista-zonas li.grupo-vazio { font-size: 11.5px; color: var(--suave); font-style: italic; padding: 3px 8px 6px 24px; cursor: default; }
+.lista-zonas li.grupo-vazio:hover { background: none; }
+.grupo-zonas.auto .nome { text-transform: none; letter-spacing: 0; }
+.z-multi .mover-grupo { display: block; margin-top: 6px; font-size: 12.5px; }
+.z-multi .mover-grupo select { width: 100%; margin-top: 3px; }
+.lista-zonas li.alvo { background: var(--verde-claro) !important; outline: 1px dashed var(--verde); }
+
+/* Árvores e construções na lista de áreas */
+.lista-zonas li.item-objeto .amostra-ic { width: 16px; text-align: center; font-size: 13px; }
+.lista-zonas li.item-objeto .ir { font-size: 11px; color: var(--suave); margin-left: 4px; }
+.lista-zonas li.item-objeto:hover .ir { color: var(--verde); }
+
+#secFerramentas.so-uma { display: none; }

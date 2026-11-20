@@ -6,9 +6,7 @@
 
 const FERRAMENTAS_CAL = [
   { id: 'selecionar', icone: '👆', nome: 'Selecionar', tecla: 'V',
-    dica: `${TXT.clique} num canteiro para planejar; fora dele, para ver as tarefas.` },
-  { id: 'mao', icone: '✋', nome: 'Mover mapa', tecla: 'H',
-    dica: TXT.moverMapa },
+    dica: `${TXT.clique} num canteiro para planejar; fora dele, veja as tarefas. ${TOQUE ? 'Dois dedos movem o mapa.' : 'Arraste o vazio para mover o mapa.'}` },
 ];
 
 let vistaCal = 'mes';   // 'mes' (mapa do mês) ou 'ano' (linha do tempo)

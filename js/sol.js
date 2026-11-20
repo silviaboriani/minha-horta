@@ -27,8 +27,6 @@ const FERRAMENTAS_SOL = [
     dica: 'Pinte onde quase nunca bate sol.' },
   { id: 'limparSombra', icone: '🧽', nome: 'Apagar sombra', tecla: 'E',
     dica: 'Apague a sombra pintada à mão.' },
-  { id: 'mao', icone: '✋', nome: 'Mover mapa', tecla: 'H',
-    dica: TXT.moverMapa },
 ];
 
 let mesSol = new Date().getMonth();
@@ -447,7 +445,7 @@ function solPointerDown(ev, p) {
     case 'arvore': {
       const antes = JSON.stringify(estado);
       const n = estado.objetos.filter(o => o.tipo === 'arvore').length + 1;
-      const o = { id: estado.proximoObjId++, tipo: 'arvore', nome: `Árvore ${n}`, x: arred(m.x), y: arred(m.y), diametro: 4, altura: 6, folhas: 'perene' };
+      const o = { id: estado.proximoObjId++, tipo: 'arvore', nome: `Árvore ${n}`, x: arred(m.x), y: arred(m.y), diametro: 4, altura: 6, folhas: 'perene', grupo: grupoAutoDe('arvore') };
       estado.objetos.push(o);
       objetoAtivo = o.id;
       ferramenta = 'objeto';
@@ -496,7 +494,7 @@ function solSoltar(pt) {
     if (k.largura < 0.4 || k.profundidade < 0.2) return;
     const antes = JSON.stringify(estado);
     const n = estado.objetos.filter(o => o.tipo === 'construcao').length + 1;
-    const o = { id: estado.proximoObjId++, tipo: 'construcao', nome: `Construção ${n}`, ...k, altura: 3 };
+    const o = { id: estado.proximoObjId++, tipo: 'construcao', nome: `Construção ${n}`, ...k, altura: 3, grupo: grupoAutoDe('construcao') };
     estado.objetos.push(o);
     objetoAtivo = o.id;
     ferramenta = 'objeto';

@@ -5,7 +5,7 @@
 //  Sugestões por sol, época e vizinhança; avisos de plantas que não combinam.
 // =====================================================================
 
-const TIPOS_PLANTAVEIS = ['canteiro', 'bordadura', 'outro'];
+const TIPOS_PLANTAVEIS = ['canteiro', 'outro'];
 const TIPOS_SEM_VIZINHANCA = ['muro', 'caminho', 'composteira'];
 const DISTANCIA_VIZINHA_M = 1;   // áreas a até 1 m uma da outra são "vizinhas"
 

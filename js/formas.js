@@ -8,6 +8,24 @@
 // =====================================================================
 
 let tipoNovaForma = 'canteiro';
+// Seleção de várias áreas (só no modo desenho): zonaAtiva + as "extras"
+const zonasExtras = new Set();
+function zonasSelecionadas() {
+  if (!editandoDesenho) return zonaAtiva ? [zonaAtiva] : [];
+  const ids = [zonaAtiva, ...zonasExtras].filter(id => id && zonaPorId(id));
+  return [...new Set(ids)];
+}
+function limparSelecaoExtra() { zonasExtras.clear(); }
+// Ctrl/⌘/Shift + clique: põe ou tira a área da seleção
+function alternarNaSelecao(id) {
+  const sel = zonasSelecionadas();
+  if (sel.includes(id)) {
+    if (zonaAtiva === id) { zonasExtras.delete(id); zonaAtiva = [...zonasExtras][0] ?? null; zonasExtras.delete(zonaAtiva); }
+    else zonasExtras.delete(id);
+  } else if (!zonaAtiva) zonaAtiva = id;
+  else zonasExtras.add(id);
+  atualizarPaineis();
+}
 const fileira = { n: 4, largura: 1.2, comprimento: 3, espaco: 0.6, direcao: 'lado' };
 
 // ---------- Utilidades ----------
@@ -78,7 +96,7 @@ function criarZonaRet(k, tipo, modelo) {
   const t = TIPOS[tipo];
   const z = {
     id, nome: proximoNome(tipo), tipo, cor: modelo?.cor || t.cor, plantas: [],
-    altura: modelo?.altura ?? (tipo === 'muro' ? 1.5 : 0), grupo: modelo?.grupo ?? null,
+    altura: modelo?.altura ?? (tipo === 'muro' ? 1.5 : 0), grupo: modelo?.grupo ?? grupoAutoDe(tipo),
     qtd: {}, plantio: {}, pos: {}, origem: {},
   };
   estado.zonas.push(z);
@@ -96,11 +114,13 @@ function posAlcas(k) {
 }
 function alcaEm(p) {
   const z = zonaPorId(zonaAtiva);
-  if (!z || ferramenta !== 'forma') return null;
+  if (!z || ferramenta !== 'forma' || zonasSelecionadas().length > 1) return null;
   const k = caixaDaZona(z.id);
   if (!ehRetangulo(k)) return null;
   const pos = posAlcas(k);
-  const tol = tipoPonteiro.atual === 'touch' || TOQUE ? 18 : 7;   // dedo precisa de alvo maior
+  // dedo precisa de alvo maior — mas num canteiro pequeno as alças não podem cobrir o meio (senão não dá para arrastar)
+  const lado = Math.min(pos.e[0] - pos.w[0], pos.s[1] - pos.n[1]);
+  const tol = Math.max(5, Math.min(tipoPonteiro.atual === 'touch' || TOQUE ? 18 : 7, lado / 5));
   for (const a of ALCAS) if (Math.abs(p.x - pos[a][0]) <= tol && Math.abs(p.y - pos[a][1]) <= tol) return a;
   return null;
 }
@@ -133,17 +153,6 @@ const retLivre = (k, id = -1) => retDentro(k) && celsDoRet(k).every(i => podeOcu
 // ---------- Mouse (chamado por app.js no modo desenho) ----------
 function formaPointerDown(ev, p) {
   const antes = JSON.stringify(estado);
-  if (ferramenta === 'fileira') {
-    const rets = retsDaFileira(p.c, p.r);
-    if (!rets.every(k => retLivre(k))) { avisar('A fileira não cabe aí — tem outra área no caminho ou passa da borda do terreno.'); return true; }
-    let ultima = null;
-    for (const k of rets) ultima = criarZonaRet(k, fileira.tipo || 'canteiro');
-    zonaAtiva = ultima?.id ?? zonaAtiva;
-    registrar(antes);
-    mudou();
-    avisar(`${rets.length} canteiros criados. Arraste para ajustar, ou Ctrl+Z para desfazer.`);
-    return true;
-  }
   if (ferramenta !== 'forma') return false;
 
   const alca = alcaEm(p);
@@ -153,14 +162,7 @@ function formaPointerDown(ev, p) {
     return true;
   }
   const id = celula(p.c, p.r);
-  if (id > 0 && !ehCaminho(id)) {
-    zonaAtiva = id;
-    const z = zonaPorId(id);
-    const podeMover = !['muro'].includes(z.tipo);
-    ponteiro = { modo: 'moverZona', ini: p, dc: 0, dr: 0, antes, cels: celulasDaZona(id), podeMover };
-    atualizarPaineis();
-    return true;
-  }
+  if (id > 0 && !ehCaminho(id)) { pegarZona(ev, id, p, antes); return true; }
   if (id >= 0) {
     ponteiro = { modo: 'novaForma', ini: limitar(p), fim: limitar(p), antes };
     return true;
@@ -168,8 +170,52 @@ function formaPointerDown(ev, p) {
   return false;
 }
 
+// Clique numa área no modo desenho (ferramentas Canteiros e Selecionar):
+// com Ctrl/⌘/Shift entra ou sai da seleção; sem, começa a arrastar (ela sozinha ou o grupo selecionado)
+function pegarZona(ev, id, p, antes = JSON.stringify(estado)) {
+  if (ev.ctrlKey || ev.metaKey || ev.shiftKey) { alternarNaSelecao(id); return; }
+  const sel = zonasSelecionadas();
+  const grupo = sel.length > 1 && sel.includes(id) ? sel : [id];
+  if (grupo.length === 1) { limparSelecaoExtra(); zonaAtiva = id; }
+  const zonas = grupo.map(zonaPorId);
+  const podeMover = zonas.every(z => z.tipo !== 'muro');
+  ponteiro = { modo: 'moverZona', ini: p, dc: 0, dr: 0, antes, ids: grupo, clicada: id,
+    cels: grupo.flatMap(celulasDaZona), podeMover };
+  atualizarPaineis();
+}
+// Selecionar no modo desenho: área → pegar; vazio ou caminho → retângulo de seleção
+function selecionarNoDesenho(ev, p) {
+  const id = celula(p.c, p.r);
+  if (id > 0 && !ehCaminho(id)) { pegarZona(ev, id, p); return; }
+  ponteiro = { modo: 'marquee', ini: limitar(p), fim: limitar(p), somar: ev.ctrlKey || ev.metaKey || ev.shiftKey };
+}
+// Move várias áreas juntas (todas ou nenhuma)
+function moverGrupo(ids, dc, dr) {
+  const cols = estado.cols;
+  const grupo = new Set(ids);
+  const novasPor = {};
+  for (const id of ids) {
+    const novas = [];
+    for (const i of celulasDaZona(id)) {
+      const c = i % cols + dc, r = (i - i % cols) / cols + dr;
+      if (!dentro(c, r)) return false;
+      const j = r * cols + c, v = estado.celulas[j];
+      if (!(v === 0 || grupo.has(v) || ehCaminho(v))) return false;
+      novas.push(j);
+    }
+    novasPor[id] = novas;
+  }
+  // o espaço que fica livre vira caminho se o grupo estava sobre um caminho
+  let caminho = 0;
+  for (const id of ids) for (const j of novasPor[id]) if (ehCaminho(estado.celulas[j])) { caminho = estado.celulas[j]; break; }
+  for (const id of ids) for (const i of celulasDaZona(id)) estado.celulas[i] = caminho;
+  for (const id of ids) for (const j of novasPor[id]) estado.celulas[j] = id;
+  return true;
+}
+
 function formaPointerMove(p) {
   const pt = ponteiro;
+  if (pt.modo === 'marquee') { pt.fim = limitar(p); return true; }
   if (pt.modo === 'moverZona' && pt.podeMover) { pt.dc = p.c - pt.ini.c; pt.dr = p.r - pt.ini.r; return true; }
   if (pt.modo === 'redim') { pt.k = retRedimensionado(pt.k0, pt.alca, p); return true; }
   if (pt.modo === 'novaForma') { pt.fim = limitar(p); return true; }
@@ -186,6 +232,26 @@ function celsMovidas(pt) {
 
 function formaSoltar(pt) {
   const z = zonaPorId(zonaAtiva);
+  if (pt.modo === 'marquee') {
+    const k = caixa(pt.ini, pt.fim);
+    const ids = [];
+    for (const i of celsDoRet(k)) { const v = estado.celulas[i]; if (v > 0 && !ehCaminho(v) && !ids.includes(v)) ids.push(v); }
+    if (!pt.somar) { limparSelecaoExtra(); zonaAtiva = null; }
+    for (const id of ids) { if (!zonaAtiva) zonaAtiva = id; else if (id !== zonaAtiva) zonasExtras.add(id); }
+    atualizarPaineis();
+    return true;
+  }
+  if (pt.modo === 'moverZona' && pt.ids && pt.ids.length > 1) {
+    // clique sem arrastar num grupo: fica só a área clicada
+    if (!pt.dc && !pt.dr) { limparSelecaoExtra(); zonaAtiva = pt.clicada; atualizarPaineis(); return true; }
+    if (!pt.podeMover) return true;
+    if (!moverGrupo(pt.ids, pt.dc, pt.dr)) { avisar('Não dá para colocar aí — encosta em outra área ou sai do terreno.'); return true; }
+    const desloc = pt.dr * estado.cols + pt.dc;
+    for (const id of pt.ids) { const zz = zonaPorId(id); for (const k of Object.keys(zz.pos || {})) zz.pos[k] = zz.pos[k].map(i => i + desloc); }
+    registrar(pt.antes);
+    mudou();
+    return true;
+  }
   if (pt.modo === 'moverZona') {
     if (!pt.dc && !pt.dr) return true;
     const novas = celsMovidas(pt);
@@ -248,6 +314,12 @@ function desenharFormas(g, X, Y) {
     rotuloMedida(g, medidaRet(k) + (ok ? '' : ' — não cabe'), x, y, ok ? 'rgba(43,43,39,.88)' : '#c92a2a');
   };
 
+  if (pt && pt.modo === 'marquee') {
+    const k = caixa(pt.ini, pt.fim);
+    const x = X(k.c0), y = Y(k.r0), w = X(k.c1 + 1) - x, h = Y(k.r1 + 1) - y;
+    g.fillStyle = 'rgba(28,126,214,.08)'; g.fillRect(x, y, w, h);
+    g.setLineDash([5, 4]); g.strokeStyle = '#1c7ed6'; g.lineWidth = 1.5; g.strokeRect(x + .5, y + .5, w - 1, h - 1); g.setLineDash([]);
+  }
   if (pt && pt.modo === 'novaForma') {
     const k = caixa(pt.ini, pt.fim);
     pintaRet(k, retLivre(k), TIPOS[tipoNovaForma].cor);
@@ -255,7 +327,8 @@ function desenharFormas(g, X, Y) {
     pintaRet(pt.k, celsDoRet(pt.k).every(i => podeOcupar(i, z.id)), z.cor);
   } else if (pt && pt.modo === 'moverZona' && z && (pt.dc || pt.dr)) {
     const novas = celsMovidas(pt);
-    const ok = !novas.includes(-1) && novas.every(i => podeOcupar(i, z.id));
+    const grupo = new Set(pt.ids || [z.id]);
+    const ok = !novas.includes(-1) && novas.every(i => podeOcupar(i, z.id) || grupo.has(estado.celulas[i]));
     g.globalAlpha = 0.6;
     g.fillStyle = ok ? z.cor : '#ffa8a8';
     for (const i of novas) { if (i < 0) continue; const c = i % cols, r = (i - c) / cols; g.fillRect(X(c), Y(r), X(c + 1) - X(c), Y(r + 1) - Y(r)); }
@@ -267,8 +340,7 @@ function desenharFormas(g, X, Y) {
     rotuloMedida(g, `${fmt(metros(nk.c0))} m da esquerda, ${fmt(metros(nk.r0))} m do topo${ok ? '' : ' — não cabe'}`, X(nk.c0), Y(nk.r0), ok ? undefined : '#c92a2a');
   }
 
-  // Prévia da fileira seguindo o mouse
-  if (ferramenta === 'fileira' && cursor && !pt) {
+  if (false) {   // (a fileira agora é criada pela janela "Criar vários canteiros")
     for (const k of retsDaFileira(cursor.c, cursor.r)) {
       const ok = retLivre(k);
       if (!retDentro(k)) { g.strokeStyle = '#c92a2a'; }
@@ -281,7 +353,7 @@ function desenharFormas(g, X, Y) {
   }
 
   // Alças da área selecionada
-  if (ferramenta === 'forma' && z && !(pt && pt.modo === 'redim')) {
+  if (ferramenta === 'forma' && z && zonasSelecionadas().length < 2 && !(pt && pt.modo === 'redim')) {
     const k = caixaDaZona(z.id);
     if (ehRetangulo(k)) {
       const pos = posAlcas(k);
@@ -380,32 +452,137 @@ function preencherCaminhos() {
 }
 
 // ---------- Painel ----------
+// ---------- Criar vários canteiros (fileira) ----------
+// Primeiro lugar livre (de cima para baixo, da esquerda para a direita) onde a fileira toda cabe
+function lugarParaFileira() {
+  for (let r = 0; r < estado.rows; r++) for (let c = 0; c < estado.cols; c++) {
+    const rets = retsDaFileira(c, r);
+    if (rets.every(k => retLivre(k))) return rets;
+  }
+  return null;
+}
+const metrosFileira = () => {
+  const w = fileira.largura, h = fileira.comprimento, n = fileira.n, e = fileira.espaco;
+  return fileira.direcao === 'lado' ? [n * w + (n - 1) * e, h] : [w, n * h + (n - 1) * e];
+};
+function previaFileira() {
+  const [tw, th] = metrosFileira();
+  const W = 260, Hh = 110, esc = Math.min(W / tw, Hh / th);
+  const cor = TIPOS[fileira.tipo || 'canteiro'].cor;
+  let rets = '';
+  for (let k = 0; k < fileira.n; k++) {
+    const x = fileira.direcao === 'lado' ? k * (fileira.largura + fileira.espaco) : 0;
+    const y = fileira.direcao === 'lado' ? 0 : k * (fileira.comprimento + fileira.espaco);
+    rets += `<rect x="${(x * esc).toFixed(1)}" y="${(y * esc).toFixed(1)}" width="${(fileira.largura * esc).toFixed(1)}" height="${(fileira.comprimento * esc).toFixed(1)}" rx="2" fill="${cor}" stroke="#2b8a3e" stroke-width="1"/>`;
+  }
+  return `<svg viewBox="-2 -2 ${(tw * esc + 4).toFixed(1)} ${(th * esc + 4).toFixed(1)}" style="max-width:${W}px;max-height:${Hh}px">${rets}</svg>`;
+}
+function renderFileira() {
+  const [tw, th] = metrosFileira();
+  const cabe = lugarParaFileira();
+  const caixaJanela = $('modalGeralCaixa');
+  caixaJanela.querySelector('.fil-previa').innerHTML = previaFileira();
+  caixaJanela.querySelector('.fil-total').innerHTML = cabe
+    ? `Ocupa <b>${fmt(tw)} m × ${fmt(th)} m</b> no total.`
+    : `Ocupa ${fmt(tw)} m × ${fmt(th)} m — <b class="mal-txt">não cabe em nenhum espaço livre do terreno.</b> Diminua a quantidade ou o tamanho, ou aumente o terreno.`;
+  caixaJanela.querySelector('[data-fil="criar"]').disabled = !cabe;
+}
+function abrirFileira() {
+  const campo = (k, rot, extra = '') => `<label>${rot} <input data-fil-campo="${k}" inputmode="decimal" value="${fmt(fileira[k])}" ${extra}></label>`;
+  $('modalGeralCaixa').innerHTML = `
+    <button class="fechar" data-fil="fechar" title="Fechar">×</button>
+    <h3>▦ Criar vários canteiros</h3>
+    <div class="grade2 form">
+      <label>Quantos <input data-fil-campo="n" type="number" min="1" max="20" value="${fileira.n}"></label>
+      <label>Tipo <select data-fil-campo="tipo">${Object.entries(TIPOS).filter(([id]) => id !== 'caminho').map(([id, t]) =>
+        `<option value="${id}" ${id === (fileira.tipo || 'canteiro') ? 'selected' : ''}>${t.icone} ${t.nome}</option>`).join('')}</select></label>
+      ${campo('largura', 'Largura (m)')}
+      ${campo('comprimento', 'Comprimento (m)')}
+      ${campo('espaco', 'Espaço entre eles (m)')}
+      <label>Direção <select data-fil-campo="direcao">
+        <option value="lado" ${fileira.direcao === 'lado' ? 'selected' : ''}>Lado a lado →</option>
+        <option value="embaixo" ${fileira.direcao === 'embaixo' ? 'selected' : ''}>Um embaixo do outro ↓</option></select></label>
+    </div>
+    <div class="fil-previa"></div>
+    <p class="nota fil-total"></p>
+    <p class="nota">Eles aparecem no primeiro espaço livre e já ficam selecionados: arraste um deles para levar a fileira toda para onde quiser.</p>
+    <div class="acoes-plano">
+      <button data-fil="fechar">Cancelar</button>
+      <button class="principal" data-fil="criar">✓ Criar</button>
+    </div>`;
+  $('modalGeral').classList.remove('oculto');
+  renderFileira();
+}
+function criarFileira() {
+  const rets = lugarParaFileira();
+  if (!rets) return;
+  const antes = JSON.stringify(estado);
+  const ids = rets.map(k => criarZonaRet(k, fileira.tipo || 'canteiro')?.id).filter(Boolean);
+  if (!ids.length) return;
+  registrar(antes);
+  limparSelecaoExtra();
+  zonaAtiva = ids[0];
+  for (const id of ids.slice(1)) zonasExtras.add(id);
+  if (!['forma', 'selecionar'].includes(ferramenta)) escolherFerramenta('selecionar');
+  $('modalGeral').classList.add('oculto');
+  mudou();
+  avisar(`${ids.length} canteiros criados e selecionados. Arraste um deles para mover todos juntos (↶ desfaz).`);
+}
+function montarFileira() {
+  const modal = $('modalGeral');
+  modal.addEventListener('click', ev => {
+    const a = ev.target.closest('[data-fil]')?.dataset.fil;
+    if (a === 'fechar') modal.classList.add('oculto');
+    if (a === 'criar') criarFileira();
+  });
+  modal.addEventListener('input', ev => {
+    const k = ev.target.dataset.filCampo;
+    if (!k) return;
+    if (ev.target.tagName === 'SELECT') fileira[k] = ev.target.value;
+    else {
+      const v = Number(String(ev.target.value).replace(',', '.'));
+      if (!Number.isFinite(v) || v < 0) return;
+      if (k === 'n') fileira.n = Math.max(1, Math.min(20, Math.round(v)));
+      else if (k === 'espaco') fileira.espaco = Math.min(20, v);
+      else if (v >= 0.2) fileira[k] = Math.min(100, v);   // menor que um quadradinho (20 cm) não dá
+    }
+    renderFileira();
+  });
+}
+
 function atualizarPainelFormas() {
   const sec = $('secFormas');
   if (!sec) return;
   sec.classList.toggle('oculto', !editandoDesenho);
   $('opcoesForma').classList.toggle('oculto', ferramenta !== 'forma');
-  $('opcoesFileira').classList.toggle('oculto', ferramenta !== 'fileira');
   if (document.activeElement !== $('tipoForma')) $('tipoForma').value = tipoNovaForma;
 }
 
 function montarFormas() {
-  const sel = $('tipoForma'), selF = $('fTipo');
-  for (const [id, t] of Object.entries(TIPOS)) {
-    sel.insertAdjacentHTML('beforeend', `<option value="${id}">${t.icone} ${t.nome}</option>`);
-    selF.insertAdjacentHTML('beforeend', `<option value="${id}">${t.icone} ${t.nome}</option>`);
-  }
+  // botões do quadro "N áreas selecionadas"
+  $('zMulti').addEventListener('change', async ev => {
+    if (!ev.target.matches('[data-multi-grupo]')) return;
+    let g = ev.target.value;
+    if (g === '__nova') { g = await criarGrupo(); if (!g) { atualizarPaineis(); return; } }
+    const sel = zonasSelecionadas();
+    registrar();
+    for (const id of sel) zonaPorId(id).grupo = Number(g) || null;
+    mudou();
+    const gr = grupoPorId(Number(g));
+    avisar(`${sel.length} áreas ${gr ? `no grupo “${gr.nome}”` : 'em “Sem grupo”'}.`);
+  });
+  $('zMulti').addEventListener('click', ev => {
+    const b = ev.target.closest('[data-multi]');
+    if (!b) return;
+    if (b.dataset.multi === 'limpar') limparSelecaoExtra();
+    if (b.dataset.multi === 'deletar') { deletarZona(); return; }
+    atualizarPaineis(); desenhar();
+  });
+  const sel = $('tipoForma');
+  for (const [id, t] of Object.entries(TIPOS)) sel.insertAdjacentHTML('beforeend', `<option value="${id}">${t.icone} ${t.nome}</option>`);
   sel.onchange = () => { tipoNovaForma = sel.value; };
-  const campos = { fN: 'n', fLarg: 'largura', fComp: 'comprimento', fEsp: 'espaco', fDir: 'direcao', fTipo: 'tipo' };
-  for (const [id, k] of Object.entries(campos)) {
-    const el = $(id);
-    el.value = fileira[k] ?? 'canteiro';
-    el.addEventListener('input', () => {
-      const v = el.tagName === 'SELECT' ? el.value : Number(String(el.value).replace(',', '.'));
-      if (el.tagName === 'SELECT' || (Number.isFinite(v) && v >= 0)) fileira[k] = k === 'n' ? Math.max(1, Math.min(20, Math.round(v))) : v;
-      desenhar();
-    });
-  }
+  $('btnFileira').onclick = abrirFileira;
+  montarFileira();
   $('btnCaminhos').onclick = preencherCaminhos;
   $('zDuplicar').onclick = duplicarZona;
   $('zMedidasExatas').addEventListener('change', aplicarMedidasExatas);

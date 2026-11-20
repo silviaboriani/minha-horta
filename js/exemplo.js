@@ -16,7 +16,7 @@ function criarExemploHorta() {
   const zonas = [
     { id: 1, nome: 'Muro', tipo: 'muro', cor: '#9e9e9e', plantas: [] },
     {
-      id: 2, nome: 'Flores e Temperos', tipo: 'bordadura', cor: '#b4a7d6',
+      id: 2, nome: 'Flores e Temperos', tipo: 'canteiro', cor: '#b4a7d6',
       plantas: ['Tagetes', 'Capuchinha', 'Alecrim', 'Zínia', 'Cosmos', 'Vinca', 'Gengibre', 'Cúrcuma',
         'Girassol', 'Dália', 'Hibisco', 'Gladíolo', 'Alamanda', 'Flor de cardeal', 'Sálvia']
     },

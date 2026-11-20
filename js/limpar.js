@@ -10,7 +10,7 @@ const opcoesLimpar = { escopo: 'horta', oque: 'tudo', flores: false, perenes: tr
 function plantiosParaLimpar() {
   const zonas = opcoesLimpar.escopo === 'zona' && zonaPorId(zonaAtiva)
     ? [zonaPorId(zonaAtiva)]
-    : estado.zonas.filter(z => TIPOS_PLANTAVEIS.includes(z.tipo) && (opcoesLimpar.flores || z.tipo !== 'bordadura'));
+    : estado.zonas.filter(z => TIPOS_PLANTAVEIS.includes(z.tipo));
   const res = [];
   for (const z of zonas) {
     for (const entrada of z.plantas || []) {
@@ -49,7 +49,6 @@ function renderLimpar() {
     </div>
     <div class="grupo-op">
       <label class="check"><input type="checkbox" data-limpar-check="perenes" ${opcoesLimpar.perenes ? 'checked' : ''}> Manter as perenes (alecrim, louro, hortelã…)</label>
-      ${opcoesLimpar.escopo === 'horta' ? `<label class="check"><input type="checkbox" data-limpar-check="flores" ${opcoesLimpar.flores ? 'checked' : ''}> Incluir Flores e Temperos (bordaduras)</label>` : ''}
     </div>
     <div class="resumo-limpar ${lista.length ? '' : 'vazio'}">${lista.length
       ? `Vai tirar <b>${lista.length} plantio(s)</b> de <b>${canteiros} canteiro(s)</b>: ${[...new Set(lista.map(x => nomePlanta(x.entrada)))].slice(0, 12).join(', ')}${lista.length > 12 ? '…' : ''}.`

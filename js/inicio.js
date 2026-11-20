@@ -266,14 +266,17 @@ function passosIniciais() {
 }
 
 function htmlPrimeirosPassos() {
-  if (!estado.inicio?.passos) return '';
   const passos = passosIniciais();
   const feitos = passos.filter(p => p.feito).length;
+  // no menu ☰, "Mostrar primeiros passos" aparece só quando estão escondidos (e faltam passos)
+  const btn = $('btnMostrarPassos');
+  if (btn) btn.classList.toggle('oculto', !!estado.inicio?.passos || feitos === passos.length);
+  if (!estado.inicio?.passos) return '';
   if (feitos === passos.length) return '';
   const proximo = passos.find(p => !p.feito);
   return `<section class="primeiros-passos">
-    <button class="fechar" data-passo="fechar" title="Esconder">×</button>
-    <h2>Primeiros passos <span class="qtd">${feitos} de ${passos.length}</span></h2>
+    <h2><span>Primeiros passos <span class="qtd">${feitos} de ${passos.length}</span></span>
+      <button class="fechar-passos" data-passo="fechar" title="Esconder os primeiros passos (dá para ver de novo no menu ☰)">Esconder ×</button></h2>
     <div class="barra-passos"><span style="width:${Math.round(feitos / passos.length * 100)}%"></span></div>
     <ul>${passos.map(p => `<li class="${p.feito ? 'feito' : ''} ${p === proximo ? 'proximo' : ''}">
       <span>${p.feito ? '✅' : p === proximo ? '👉' : '⬜'}</span>
@@ -288,7 +291,16 @@ function montarPrimeirosPassos() {
     const b = ev.target.closest('[data-passo]');
     if (!b) return;
     const a = b.dataset.passo;
-    if (a === 'fechar') { estado.inicio = { ...(estado.inicio || {}), passos: false }; salvar(); renderCalendario(); }
+    if (a === 'fechar') {
+      estado.inicio = { ...(estado.inicio || {}), passos: false }; salvar(); renderCalendario();
+      avisar('Primeiros passos escondidos. Para ver de novo: menu ☰ → “Mostrar primeiros passos”.');
+    }
+    if (a === 'mostrar') {
+      estado.inicio = { ...(estado.inicio || {}), passos: true }; salvar();
+      document.querySelector('[data-menu="fechar"]')?.click();
+      if (modo !== 'mapa') { trocarModo('mapa'); ajustar(); }
+      zonaAtiva = null; atualizarPaineis(); desenhar();
+    }
     if (a === 'semArvores') { estado.inicio = { ...(estado.inicio || {}), semArvores: true }; salvar(); renderCalendario(); }
     if (a === 'ir') {
       const ir = b.dataset.ir;
