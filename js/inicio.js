@@ -20,6 +20,7 @@ function estadoVazio({ nome = 'Minha Horta', largura = 10, comprimento = 10, loc
     plantasEditadas: {}, minhaLista: [], grupos: [], proximoGrupoId: 1, diario: [],
     clima: { ativo: false },
     inicio: { passos: true, semArvores: false },
+    perfil: { pessoas: 2, objetivo: 'fresco' },
   };
 }
 
@@ -92,16 +93,16 @@ function atualizarArquivo() {
 //  Boas-vindas (passo a passo)
 // ---------------------------------------------------------------------
 
-const novo = { passo: 0, nome: 'Minha Horta', largura: 8, comprimento: 10, local: null, busca: '', resultados: [], buscando: false };
+const novo = { passo: 0, nome: 'Minha Horta', largura: 8, comprimento: 10, local: null, busca: '', resultados: [], buscando: false, pessoas: 2, objetivo: 'fresco' };
 
 function abrirBoasVindas() {
-  Object.assign(novo, { passo: 0, nome: 'Minha Horta', largura: 8, comprimento: 10, local: null, busca: '', resultados: [] });
+  Object.assign(novo, { passo: 0, nome: 'Minha Horta', largura: 8, comprimento: 10, local: null, busca: '', resultados: [], pessoas: 2, objetivo: 'fresco' });
   $('modalInicio').classList.remove('oculto');
   renderBoasVindas();
 }
 
 function renderBoasVindas() {
-  const passos = ['Boas-vindas', 'Nome', 'Lugar', 'Tamanho'];
+  const passos = ['Boas-vindas', 'Nome', 'Lugar', 'Tamanho', 'Quem come'];
   const barra = novo.passo ? `<div class="passos-barra">${passos.slice(1).map((p, i) =>
     `<span class="${i + 1 === novo.passo ? 'atual' : i + 1 < novo.passo ? 'feito' : ''}">${i + 1}. ${p}</span>`).join('')}</div>` : '';
   let corpo = '';
@@ -143,11 +144,15 @@ function renderBoasVindas() {
         <label>Comprimento <input class="bv-campo curto" data-bv-campo="comprimento" value="${fmt(novo.comprimento, 1)}"> m</label>
       </div>
       <div class="bv-ok">= ${fmt(novo.largura * novo.comprimento, 1)} m²</div>`;
+  } else if (novo.passo === 4) {
+    corpo = `<h2>Quem vai comer da horta?</h2>
+      <p class="nota">Com isso o app sugere quantas plantas de cada tipo — e não quantas cabem. Dá para mudar depois no menu ☰ → Perfil da horta.</p>
+      <div class="perfil-horta form">${htmlCamposPerfil({ pessoas: novo.pessoas, objetivo: novo.objetivo }, 'bv')}</div>`;
   }
   const navegacao = novo.passo ? `<div class="bv-nav">
       <button data-bv="voltar">‹ Voltar</button>
       ${novo.passo === 2 && !novo.local ? '<button data-bv="pular" class="link">Pular por enquanto</button>' : ''}
-      <button class="principal" data-bv="${novo.passo === 3 ? 'criar' : 'avancar'}" ${novo.passo === 2 && !novo.local ? 'disabled' : ''}>${novo.passo === 3 ? '✓ Criar minha horta' : 'Continuar ›'}</button>
+      <button class="principal" data-bv="${novo.passo === 4 ? 'criar' : 'avancar'}" ${novo.passo === 2 && !novo.local ? 'disabled' : ''}>${novo.passo === 4 ? '✓ Criar minha horta' : 'Continuar ›'}</button>
     </div>` : '';
   $('inicioCaixa').innerHTML = barra + corpo + navegacao;
   const campo = $('inicioCaixa').querySelector('.bv-campo');
@@ -169,6 +174,7 @@ async function buscarCidade() {
 function criarHortaNova() {
   if (estado.zonas.length || estado.diario.length) guardarProjetoAtual();
   const e = estadoVazio({ nome: novo.nome.trim() || 'Minha Horta', largura: novo.largura, comprimento: novo.comprimento, local: novo.local });
+  e.perfil = { pessoas: novo.pessoas, objetivo: novo.objetivo };
   $('modalInicio').classList.add('oculto');
   trocarDeProjeto(migrar(e));
   alternarDesenho(true);
@@ -177,6 +183,10 @@ function criarHortaNova() {
 
 function montarBoasVindas() {
   const caixa = $('inicioCaixa');
+  caixa.addEventListener('change', ev => {
+    if (ev.target.matches('[data-bv-pessoas]')) novo.pessoas = Math.max(1, Math.min(30, Math.round(Number(ev.target.value) || 1)));
+    if (ev.target.matches('[data-bv-objetivo]')) { novo.objetivo = ev.target.value; renderBoasVindas(); }
+  });
   caixa.addEventListener('input', ev => {
     const k = ev.target.dataset.bvCampo;
     if (!k) return;

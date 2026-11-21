@@ -1059,6 +1059,12 @@ PLANTAS_BASE.find(p => p.id === 'melao').variedades = ['Amarelo', 'Cantaloupe (r
 const GRAOS = ['feijao', 'feijao-de-corda', 'fava', 'grao-de-bico', 'lentilha', 'ervilha-grao', 'edamame', 'amendoim',
   'arroz', 'trigo', 'aveia', 'cevada', 'centeio', 'milho-pipoca', 'trigo-sarraceno', 'quinoa', 'amaranto'];
 
+// Adubação verde de verão (usada pelo ✨ Sugerir plano quando sobra espaço). Estimativa: guias de adubação verde.
+PLANTAS_BASE.push(P('feijao-de-porco', 'Feijão-de-porco (adubação verde)', 'outras', '🌱', { ...LEG, alias: ['canavalia', 'adubacao verde'],
+  esp: [30, 50], sem: [9, 10, 11, 12, 1], col: [90, 120], geada: true, sol: 6, fontes: [], adubo: true,
+  dica: 'Planta para melhorar o solo, não para comer (as sementes são tóxicas). Semeie no calor, corte na floração e deixe a palha sobre o canteiro. Aguenta seca e solo pobre.' }));
+Object.assign(PLANTAS_BASE.find(p => p.id === 'aveia'), { adubo: true });
+
 const LISTA_INICIAL = [
   'alface', 'rucula', 'couve', 'acelga', 'almeirao', 'chicoria', 'espinafre-nz', 'mostarda',
   'manjericao', 'cebolinha', 'salsinha', 'coentro', 'oregano', 'alecrim', 'salvia',

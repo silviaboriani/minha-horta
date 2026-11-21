@@ -3,7 +3,7 @@
 // =====================================================================
 //  Minha Horta — "Sugerir plano": o app monta a ordem de plantio do ano
 //
-//  Para cada canteiro, a partir do mês escolhido, percorre os 12 meses e,
+//  Para cada canteiro, percorre os meses escolhidos (em ordem, a partir do mês atual) e,
 //  sempre que sobra espaço, escolhe plantas que:
 //    • estão na época de ir para o canteiro naquele mês
 //    • recebem sol suficiente naquele mês
@@ -21,7 +21,18 @@ const MAX_NO_CANTEIRO = 2;  // a mesma cultura no máximo 2 vezes por ano no mes
 const LIVRE_REPETIR = 0.5;  // só repete cultura de outro canteiro se este ficaria mais da metade vazio
 
 let propostaPlano = null;   // { escopo, zonas: [{ zona, atuais, novas, aplicar }], opcoes }
-const opcoesPlano = { manter: true, lista: true, nuncaRepetir: false };
+const opcoesPlano = { manter: true, lista: true, nuncaRepetir: false,
+  mesesSel: new Set(),   // meses (1–12) em que se planta; ao abrir, só o mês atual
+  sobra: 'outras',       // espaço que sobra depois das quantidades da casa: outras | livre | adubo
+  grupos: new Set(['vegetais', 'frutas', 'ervas', 'graos', 'flores']) };
+
+// Plantas que podem entrar no plano com as opções atuais (sem olhar época, sol ou espaço)
+function candidatasDoPlano() {
+  return todasPlantas().filter(p => !p.perene && mesesDeIrProCanteiro(p).length && !(p.adubo && p.id !== 'aveia')
+    && (!opcoesPlano.lista || !temFavoritos() || naLista(p.id))
+    && opcoesPlano.grupos.has(grupoDaPlanta(p)));
+}
+
 
 // Média de horas de sol de cada área, por mês (calculado sob demanda)
 function solMedioPorMes() {
@@ -61,8 +72,11 @@ function gerarPlano(zonas, inicio) {
     });
   }
 
-  const candidatas = todasPlantas().filter(p =>
-    !p.perene && (!opcoesPlano.lista || !temFavoritos() || naLista(p.id)) && mesesDeIrProCanteiro(p).length);
+  const candidatas = candidatasDoPlano();
+  const casa = !semLimite();   // quantidades pelo perfil da horta (e não pelo espaço)
+  const porMes = casa && opcoesPlano.sobra === 'outras' ? 8 : NOVAS_POR_MES;
+  const adubos = todasPlantas().filter(p => ADUBOS_VERDES.includes(p.id));
+
 
   const resultado = [];
   for (const z of zonas) {
@@ -74,7 +88,8 @@ function gerarPlano(zonas, inicio) {
 
     for (let k = 0; k < 12; k++) {
       const m = mesMais(inicio, k);
-      for (let tentativa = 0; tentativa < NOVAS_POR_MES; tentativa++) {
+      if (!opcoesPlano.mesesSel.has(m)) continue;   // só nos meses escolhidos
+      for (let tentativa = 0; tentativa < porMes; tentativa++) {
         if (area - usoNoMes(m) < area * LIVRE_MIN) break;
         let melhor = null, melhorRepetida = null;
         for (const p of candidatas) {
@@ -88,12 +103,20 @@ function gerarPlano(zonas, inicio) {
           if (juntoViz.some(x => saoInimigas(p.id, x.id))) continue;
           // espaço livre em todos os meses em que ela fica no canteiro
           const livre = Math.min(...[...ativos].map(mm => area - usoNoMes(mm)));
-          const fatia = Math.min(livre, area * FATIA_MAX);
-          // nada de "sobrinhas": cada plantio precisa de pelo menos 15% da área (ou 1 pé, se for planta grande)
-          if (fatia < Math.min(area * FATIA_MIN, areaDePe(p))) continue;
-          if (fatia < area * FATIA_MIN && areaDePe(p) < area * FATIA_MIN) continue;
-          const qtd = Math.floor(fatia / areaDePe(p) + 1e-9);
-          if (qtd < minPes(p)) continue;
+          let fatia = Math.min(livre, area * FATIA_MAX), qtd;
+          if (casa) {
+            // o que a casa precisa, sem passar do que cabe
+            const alvo = quantidadeAlvo(p);
+            qtd = Math.min(alvo, Math.floor(fatia / areaDePe(p) + 1e-9));
+            if (qtd < 1 || qtd < Math.min(alvo, minPes(p))) continue;
+            fatia = qtd * areaDePe(p);
+          } else {
+            // nada de "sobrinhas": cada plantio precisa de pelo menos 15% da área (ou 1 pé, se for planta grande)
+            if (fatia < Math.min(area * FATIA_MIN, areaDePe(p))) continue;
+            if (fatia < area * FATIA_MIN && areaDePe(p) < area * FATIA_MIN) continue;
+            qtd = Math.floor(fatia / areaDePe(p) + 1e-9);
+            if (qtd < minPes(p)) continue;
+          }
 
           const amigas = [...new Set(junto.filter(x => saoAmigas(p.id, x.id)).map(x => x.id))];
           const amigasViz = [...new Set(juntoViz.filter(x => saoAmigas(p.id, x.id)).map(x => x.id))];
@@ -112,7 +135,7 @@ function gerarPlano(zonas, inicio) {
           else if (!melhor || pontos > melhor.pontos) melhor = opcao;
         }
         // Cultura que já está em outro canteiro só entra se não houver alternativa e o canteiro ficaria muito vazio
-        if (!melhor && melhorRepetida && !opcoesPlano.nuncaRepetir && area - usoNoMes(m) >= area * LIVRE_REPETIR) melhor = melhorRepetida;
+        if (!casa && !melhor && melhorRepetida && !opcoesPlano.nuncaRepetir && area - usoNoMes(m) >= area * LIVRE_REPETIR) melhor = melhorRepetida;
         if (!melhor) break;
         const { p, ativos, qtd, amigas, amigasViz } = melhor;
         const motivos = [`época de plantar em ${MESES[m - 1].toLowerCase()}`, `${fmt(sol(z.id, m), 1)} h de sol`];
@@ -122,6 +145,22 @@ function gerarPlano(zonas, inicio) {
         plantios.push(nova);
         novas.push(nova);
         usadasNoPlano[p.id] = (usadasNoPlano[p.id] || 0) + 1;
+      }
+      if (casa && opcoesPlano.sobra === 'adubo' && area - usoNoMes(m) >= area * LIVRE_MIN) {
+        for (const p of adubos) {
+          if (!mesesDeIrProCanteiro(p).includes(m) || sol(z.id, m) < p.sol - 0.5) continue;
+          const ativos = mesesAtivos(p, m);
+          if (p.geada && geada.some(g => ativos.has(g))) continue;
+          if (plantios.some(x => x.id === p.id && seCruzam(ativos, x.ativos))) continue;
+          const livre = Math.min(...[...ativos].map(mm => area - usoNoMes(mm)));
+          const qtd = Math.floor(livre / areaDePe(p) + 1e-9);
+          if (qtd < 1 || livre < area * LIVRE_MIN) continue;
+          const nova = { id: p.id, p, inicio: m, ativos, area: qtd * areaDePe(p), qtd, adubo: true,
+            motivos: ['adubação verde no espaço que sobrou', 'corte na floração e deixe a palha sobre o solo'] };
+          plantios.push(nova);
+          novas.push(nova);
+          break;
+        }
       }
     }
     resultado.push({ zona: z, atuais: plantios.filter(x => x.atual), novas, aplicar: true });
@@ -139,6 +178,7 @@ function abrirSugestaoPlano(escopo) {
     : [zonaPorId(zonaAtiva)].filter(Boolean);
   if (!zonas.length) { avisar('Não há canteiros para planejar.'); return; }
   propostaPlano = { escopo, ids: zonas.map(z => z.id), inicio: mesSol + 1 };
+  opcoesPlano.mesesSel = new Set([mesSol + 1]);
   regerarPlano();
   $('modalPlano').classList.remove('oculto');
 }
@@ -146,19 +186,86 @@ function abrirSugestaoPlano(escopo) {
 function regerarPlano() {
   const zonas = propostaPlano.ids.map(zonaPorId).filter(Boolean);
   propostaPlano.zonas = gerarPlano(zonas, propostaPlano.inicio);
+  const ordem = m => (m - propostaPlano.inicio + 12) % 12;
+  for (const r of propostaPlano.zonas) r.novas.sort((a, b) => ordem(a.inicio) - ordem(b.inicio));
   renderModalPlano();
 }
 
-function linhaPreview(x, nova) {
+let vistaPlano = 'canteiro';   // 'canteiro' (padrão) | 'mes' | 'planta'
+
+// Caixinha de quantidade (0 = não plantar) — a mesma em todas as vistas
+const caixaQtd = (x, chave) => `<input type="number" class="qtd-plano" min="0" step="1" value="${x.qtd}" data-qtd-plano="${chave}" title="Quantos pés (0 = não plantar)">`;
+// Quando colhe (ou floresce), contando do mês de plantio
+function colheitaDe(x) {
+  const meses = [...x.ativos].filter(m => statusNoMes(x.p, x.inicio, m) === 'colher');
+  return `${ehFlor(x.p) ? '🌸' : '🧺'} ${faixaMeses(meses)}`;
+}
+// Todas as novas, com a chave "zona:índice"
+const todasNovas = pr => pr.zonas.flatMap((r, i) => r.novas.map((x, j) => ({ x, r, chave: `${i}:${j}` })));
+
+// Vista por mês: lista do que fazer, mês a mês
+function vistaPorMes(pr, escolhidos) {
+  const novas = todasNovas(pr);
+  return escolhidos.map(m => {
+    const doMes = novas.filter(n => n.x.inicio === m);
+    if (!doMes.length) return '';
+    const porZona = pr.zonas.map(r => ({ r, itens: doMes.filter(n => n.r === r) })).filter(g => g.itens.length);
+    return `<div class="mes-bloco"><h4>${MESES[m - 1]}</h4>
+      ${porZona.map(({ r, itens }) => `<div class="mes-linha ${r.aplicar ? '' : 'fora'}"><span class="onde">${escapar(r.zona.nome)}</span>
+        <span class="itens">${itens.map(({ x, chave }) => `<span class="item-plano ${x.qtd ? '' : 'zerada'}" title="${escapar(x.motivos.join(' · '))}">
+          ${escapar(x.p.emoji)} ${escapar(x.p.nome)} ${caixaQtd(x, chave)} <small>→ ${colheitaDe(x)}</small></span>`).join('')}</span></div>`).join('')}
+    </div>`;
+  }).join('');
+}
+
+// Vista por planta: mostra quando uma planta volta (replantio) e onde
+function vistaPorPlanta(pr) {
+  const grupos = {};
+  for (const n of todasNovas(pr)) (grupos[n.x.p.id] = grupos[n.x.p.id] || []).push(n);
+  const ordem = m => (m - pr.inicio + 12) % 12;
+  for (const l of Object.values(grupos)) l.sort((a, b) => ordem(a.x.inicio) - ordem(b.x.inicio) || a.r.zona.nome.localeCompare(b.r.zona.nome, 'pt', { numeric: true }));
+  return Object.values(grupos)
+    .sort((a, b) => (b.length - a.length) || a[0].x.p.nome.localeCompare(b[0].x.p.nome, 'pt'))
+    .map(lista => `<div class="planta-linha"><span class="quem">${escapar(lista[0].x.p.emoji)} <b>${escapar(lista[0].x.p.nome)}</b>
+        ${lista.length > 1 ? `<span class="vezes" title="Replantada ao longo do período">🔁 ${lista.length}×</span>` : ''}</span>
+      <span class="itens">${lista.map(({ x, r, chave }) => `<span class="item-plano ${x.qtd ? '' : 'zerada'} ${r.aplicar ? '' : 'fora'}" title="${escapar(x.motivos.join(' · '))}">
+        ${escapar(r.zona.nome)} · ${MESES_CURTOS[x.inicio - 1]} ${caixaQtd(x, chave)}</span>`).join('<span class="seta-pl">→</span>')}</span></div>`).join('');
+}
+
+// Barrinha de espaço ocupado por mês (prévia por canteiro)
+function linhaEspaco(r) {
+  const cont = contarCelulas();
+  const lado = estado.tamanhoCelulaCm / 100;
+  const area = (cont[r.zona.id] || 0) * lado * lado;
+  if (!area) return '';
+  const todos = [...r.atuais, ...r.novas.filter(x => x.qtd > 0)];
+  return `<tr class="espaco"><th>espaço ocupado</th>${MESES_CURTOS.map((_, i) => {
+    const uso = todos.reduce((s, x) => s + (x.ativos.has(i + 1) ? (x.area || 0) : 0), 0);
+    const pct = Math.round(uso / area * 100);
+    return `<td title="${MESES[i]}: ${pct}% do canteiro"><i class="${pct > 100 ? 'mal' : ''}" style="height:${Math.min(100, pct)}%"></i></td>`;
+  }).join('')}</tr>`;
+}
+
+function linhaPreview(x, nova, chave) {
   const e = { p: x.p, inicio: x.inicio };
-  return `<tr class="${nova ? 'nova' : 'atual'}"><th title="${nova ? escapar(x.motivos.join(' · ')) : 'já está no canteiro'}">
-      <span class="nome-pl">${escapar(x.p.emoji)} ${escapar(x.p.nome)}${x.qtd ? ` <small>×${x.qtd}</small>` : ''}</span>
+  const qtd = nova
+    ? ` <input type="number" class="qtd-plano" min="0" step="1" value="${x.qtd}" data-qtd-plano="${chave}" title="Quantos pés (0 = não plantar)">`
+    : (x.qtd ? ` <small>×${x.qtd}</small>` : '');
+  return `<tr class="${nova ? 'nova' : 'atual'} ${nova && !x.qtd ? 'zerada' : ''}"><th title="${nova ? escapar(x.motivos.join(' · ')) : 'já está no canteiro'}">
+      <span class="nome-pl">${escapar(x.p.emoji)} ${escapar(x.p.nome)}</span>${qtd}
       <span class="quando">${nova ? `✨ ${MESES_CURTOS[x.inicio - 1]}` : 'atual'}</span></th>${celulasAno(e)}</tr>`;
 }
 
 function renderModalPlano() {
   const pr = propostaPlano;
-  const cab = `<tr><th></th>${MESES_CURTOS.map((m, i) => `<th class="${i === pr.inicio - 1 ? 'sel' : ''}">${m}</th>`).join('')}</tr>`;
+  // meses escolhidos ficam marcados no cabeçalho
+  const sel = opcoesPlano.mesesSel;
+  const cab = `<tr><th></th>${MESES_CURTOS.map((m, i) => `<th class="${sel.has(i + 1) ? 'janela' : ''}">${m}</th>`).join('')}</tr>`;
+  // em ordem a partir do mês atual (novembro, dezembro, janeiro…)
+  const escolhidos = [...sel].sort((a, b) => ((a - pr.inicio + 12) % 12) - ((b - pr.inicio + 12) % 12));
+  const nomesMeses = l => l.map(m => MESES[m - 1].toLowerCase()).join(', ').replace(/, ([^,]*)$/, ' e $1');
+  const comNovas = new Set(pr.zonas.flatMap(r => r.novas.map(x => x.inicio)));
+  const vazios = escolhidos.filter(m => !comNovas.has(m));
   const blocos = pr.zonas.map((r, i) => `
     <div class="bloco-plano">
       <div class="bloco-topo">
@@ -167,23 +274,47 @@ function renderModalPlano() {
       </div>
       ${r.atuais.length || r.novas.length ? `<table class="gantt compacta preview">${cab}
         ${r.atuais.map(x => linhaPreview(x, false)).join('')}
-        ${r.novas.sort((a, b) => ((a.inicio - pr.inicio + 12) % 12) - ((b.inicio - pr.inicio + 12) % 12)).map(x => linhaPreview(x, true)).join('')}
+        ${r.novas.map((x, j) => linhaPreview(x, true, `${i}:${j}`)).join('')}
+        ${linhaEspaco(r)}
       </table>` : ''}
     </div>`).join('');
-  const total = pr.zonas.reduce((s, r) => s + (r.aplicar ? r.novas.length : 0), 0);
+  const total = pr.zonas.reduce((s, r) => s + (r.aplicar ? r.novas.filter(x => x.qtd > 0).length : 0), 0);
+  // resumo: plantios, plantas diferentes, meses com plantio
+  const validas = pr.zonas.filter(r => r.aplicar).flatMap(r => r.novas.filter(x => x.qtd > 0));
+  const resumo = validas.length
+    ? `<b>${validas.length}</b> plantio(s) · <b>${new Set(validas.map(x => x.id)).size}</b> plantas diferentes · <b>${new Set(validas.map(x => x.inicio)).size}</b> mês(es) com plantio`
+    : 'Nenhum plantio novo.';
+  const corpo = vistaPlano === 'mes' ? vistaPorMes(pr, escolhidos) : vistaPlano === 'planta' ? vistaPorPlanta(pr) : blocos;
+  const abas = [['canteiro', '🥬 Canteiro'], ['mes', '📅 Mês'], ['planta', '🌱 Planta']]
+    .map(([v, t]) => `<button class="${vistaPlano === v ? 'on' : ''}" data-vista-plano="${v}">${t}</button>`).join('');
 
   $('modalPlanoCaixa').innerHTML = `
     <button class="fechar" data-plano="cancelar" title="Fechar">×</button>
     <h3>✨ Sugestão de plano ${pr.escopo === 'horta' ? 'para a horta toda' : `— ${escapar(pr.zonas[0].zona.nome)}`}</h3>
-    <p class="nota">Plano de 12 meses a partir de <b>${MESES[pr.inicio - 1].toLowerCase()}</b>: plantas na época certa, com sol suficiente, protegidas da geada, com boas vizinhas e usando o espaço livre.
-      ${TXT.passe} sobre uma ✨ para ver o motivo.</p>
+    <p class="nota">O que plantar ${escolhidos.length ? `em <b>${nomesMeses(escolhidos)}</b>` : 'nos meses escolhidos'}: plantas na época certa, com sol suficiente, protegidas da geada e com boas vizinhas. Cada uma fica no canteiro até a colheita. ${TXT.passe} sobre uma planta para ver o motivo. Mude a quantidade na caixinha (0 = não plantar).</p>
+    <div class="opcoes-plano">
+      <span class="rot-meses">Plantar em:</span>
+      <div class="meses-plano">${MESES_CURTOS.map((m, i) => `<button class="mes-plano ${sel.has(i + 1) ? 'on' : ''} ${i + 1 === pr.inicio ? 'agora' : ''}" data-mes-plano="${i + 1}" title="${MESES[i]}${i + 1 === pr.inicio ? ' (agora)' : ''}">${m}</button>`).join('')}</div>
+      <button class="mes-plano ano-todo ${sel.size === 12 ? 'on' : ''}" data-ano-todo title="${sel.size === 12 ? 'Voltar a só este mês' : 'Marcar os 12 meses'}">${sel.size === 12 ? '✓ Ano todo' : 'Ano todo'}</button>
+    </div>
+    <div class="opcoes-plano perfil-plano">
+      <span>Quantidades para</span>
+      <input type="number" min="1" max="30" step="1" value="${perfilDaHorta().pessoas}" data-plano-pessoas title="Quantas pessoas comem da horta (perfil da horta)"> <span>${perfilDaHorta().pessoas === 1 ? 'pessoa' : 'pessoas'} ·</span>
+      <select data-plano-objetivo title="Para que serve a horta (perfil da horta)">${Object.entries(OBJETIVOS).map(([k, o]) => `<option value="${k}" ${perfilDaHorta().objetivo === k ? 'selected' : ''}>${o.nome}</option>`).join('')}</select>
+      ${semLimite() ? '' : `<label>Espaço que sobra: <select data-plano-sobra>${Object.entries(SOBRAS).map(([k, s]) => `<option value="${k}" ${opcoesPlano.sobra === k ? 'selected' : ''} title="${s.desc}">${s.nome}</option>`).join('')}</select></label>`}
+    </div>
+    <div class="tipos-plano">${GRUPOS_SUGESTAO.map(g => `<button class="chip-tipo ${opcoesPlano.grupos.has(g.id) ? 'on' : ''}" data-tipo-plano="${g.id}">${g.icone} ${g.nome.replace(' companheiras', '')}</button>`).join('')}</div>
     <div class="opcoes-plano">
       <label class="check"><input type="checkbox" data-op="manter" ${opcoesPlano.manter ? 'checked' : ''}> Manter as plantas que já estão</label>
       ${temFavoritos() ? `<label class="check"><input type="checkbox" data-op="lista" ${opcoesPlano.lista ? 'checked' : ''}> Só favoritos ★</label>` : ''}
-      <label class="check" title="Sem esta opção, uma cultura que já está em outro canteiro só é usada quando não há alternativa e o canteiro ficaria mais da metade vazio"><input type="checkbox" data-op="nuncaRepetir" ${opcoesPlano.nuncaRepetir ? 'checked' : ''}> Nunca repetir cultura entre canteiros (pode sobrar espaço)</label>
-      <label>Começar em <select data-op="inicio">${MESES.map((m, i) => `<option value="${i + 1}" ${i + 1 === pr.inicio ? 'selected' : ''}>${m}</option>`).join('')}</select></label>
+      <label class="check" title="Replantar a mesma planta em outros meses continua valendo. Marcado: a mesma planta nunca fica em dois canteiros ao mesmo tempo. Sem marcar: isso só acontece quando não há outra opção e o canteiro ficaria vazio."><input type="checkbox" data-op="nuncaRepetir" ${opcoesPlano.nuncaRepetir ? 'checked' : ''}> Nunca a mesma planta em dois canteiros ao mesmo tempo (pode sobrar espaço)</label>
     </div>
-    <div class="blocos-plano">${blocos}</div>
+    ${!sel.size ? '<p class="vazio">Escolha pelo menos um mês acima.</p>' : ''}
+    ${!opcoesPlano.grupos.size ? '<p class="vazio">Escolha pelo menos um tipo de planta acima.</p>' : ''}
+    ${sel.size && opcoesPlano.grupos.size && vazios.length ? `<p class="nota aviso-meses">Nada novo em ${nomesMeses(vazios)} — fora de época para os tipos escolhidos, ou os canteiros já estão cheios.</p>` : ''}
+    <div class="topo-vista"><span class="resumo-plano">${resumo}</span><span class="abas-vista">Ver por ${abas}</span></div>
+    ${vistaPlano !== 'canteiro' && pr.zonas.length > 1 && pr.zonas.some(r => !r.aplicar) ? '<p class="nota">Os canteiros desmarcados (na vista Canteiro) aparecem apagados e não entram no plano.</p>' : ''}
+    <div class="blocos-plano vista-${vistaPlano}">${corpo || '<p class="vazio">Nada para mostrar.</p>'}</div>
     <div class="acoes-plano">
       <button class="principal" data-plano="aplicar" ${total ? '' : 'disabled'}>✓ Aplicar ${total} plantio(s)</button>
       <button data-plano="outra">↻ Outra sugestão</button>
@@ -200,6 +331,7 @@ function aplicarPlano() {
     const z = r.zona;
     if (!opcoesPlano.manter) { z.plantas = []; z.qtd = {}; z.plantio = {}; z.pos = {}; z.origem = {}; }
     for (const x of r.novas) {
+      if (!(x.qtd > 0)) continue;   // a pessoa zerou: não planta
       let chave = x.id, k = 2;
       while (z.plantas.includes(chave)) chave = `${x.id}#${k++}`;
       z.plantas.push(chave);
@@ -225,6 +357,24 @@ function montarSugerir() {
   modal.addEventListener('click', ev => {
     if (ev.target === modal) { fecharPlano(); return; }
     const acao = ev.target.closest('[data-plano]')?.dataset.plano;
+    const vb = ev.target.closest('[data-vista-plano]');
+    if (vb) { vistaPlano = vb.dataset.vistaPlano; renderModalPlano(); return; }
+    if (ev.target.closest('[data-ano-todo]')) {
+      // marca os 12 meses; se já estavam todos, volta para só o mês atual
+      opcoesPlano.mesesSel = opcoesPlano.mesesSel.size === 12 ? new Set([propostaPlano.inicio]) : new Set(MESES.map((_, i) => i + 1));
+      regerarPlano(); return;
+    }
+    const mesB = ev.target.closest('[data-mes-plano]');
+    if (mesB) {
+      const m = Number(mesB.dataset.mesPlano);
+      if (opcoesPlano.mesesSel.has(m)) opcoesPlano.mesesSel.delete(m); else opcoesPlano.mesesSel.add(m);
+      regerarPlano(); return;
+    }
+    const tipo = ev.target.closest('[data-tipo-plano]')?.dataset.tipoPlano;
+    if (tipo) {
+      if (opcoesPlano.grupos.has(tipo)) opcoesPlano.grupos.delete(tipo); else opcoesPlano.grupos.add(tipo);
+      regerarPlano(); return;
+    }
     if (acao === 'cancelar') fecharPlano();
     else if (acao === 'outra') regerarPlano();
     else if (acao === 'aplicar') aplicarPlano();
@@ -232,7 +382,17 @@ function montarSugerir() {
   modal.addEventListener('change', ev => {
     const op = ev.target.dataset.op;
     if (op === 'manter' || op === 'lista' || op === 'nuncaRepetir') { opcoesPlano[op] = ev.target.checked; regerarPlano(); }
-    else if (op === 'inicio') { propostaPlano.inicio = Number(ev.target.value); regerarPlano(); }
+    else if (ev.target.matches('[data-plano-pessoas]')) { definirPerfil({ pessoas: Math.max(1, Math.min(30, Math.round(Number(ev.target.value) || 1))) }); regerarPlano(); }
+    else if (ev.target.matches('[data-plano-objetivo]')) { definirPerfil({ objetivo: ev.target.value }); regerarPlano(); }
+    else if (ev.target.matches('[data-plano-sobra]')) { opcoesPlano.sobra = ev.target.value; regerarPlano(); }
+    else if (ev.target.dataset.qtdPlano !== undefined) {
+      // só muda a quantidade (não sorteia de novo)
+      const [zi, j] = ev.target.dataset.qtdPlano.split(':').map(Number);
+      const x = propostaPlano.zonas[zi].novas[j];
+      x.qtd = Math.max(0, Math.floor(Number(ev.target.value) || 0));
+      x.area = x.qtd * areaDePe(x.p);
+      renderModalPlano();
+    }
     else if (ev.target.dataset.aplicarZona !== undefined) {
       propostaPlano.zonas[Number(ev.target.dataset.aplicarZona)].aplicar = ev.target.checked;
       renderModalPlano();

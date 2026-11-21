@@ -1051,3 +1051,59 @@ html.toque .primeiros-passos .fechar-passos { padding: 6px 8px; font-size: 12.5p
 .lista-zonas li.item-objeto:hover .ir { color: var(--verde); }
 
 #secFerramentas.so-uma { display: none; }
+
+/* Sugerir plano: tipos de planta, período e quantidades */
+.tipos-plano { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 8px; }
+.chip-tipo { border-radius: 99px; padding: 4px 11px; font-size: 12.5px; background: #fff; border: 1px solid var(--borda); color: var(--suave); }
+.chip-tipo.on { background: #ebfbee; border-color: #8ce99a; color: #2b8a3e; font-weight: 600; }
+.gantt.preview input.qtd-plano { width: 46px; padding: 1px 4px; font-size: 11.5px; margin-left: 4px; }
+.gantt.preview tr.zerada th .nome-pl { text-decoration: line-through; color: var(--suave); }
+.gantt.preview tr.zerada td { opacity: .25; }
+.gantt th.janela { background: #f3f0ff; color: #7048e8; }
+
+/* Sugerir plano: botões dos meses */
+.rot-meses { font-size: 13px; }
+.meses-plano { display: flex; flex-wrap: wrap; gap: 3px; }
+.mes-plano { padding: 3px 7px; font-size: 12px; border-radius: 6px; background: #fff; border: 1px solid var(--borda); color: var(--suave); min-width: 36px; }
+.mes-plano.agora { border-color: #b197fc; }
+.mes-plano.on { background: #7048e8; border-color: #7048e8; color: #fff; font-weight: 600; }
+html.toque .mes-plano { padding: 6px 8px; min-width: 40px; }
+.aviso-meses { color: #a3700b; }
+
+/* Prévia do plano: vistas */
+.topo-vista { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin: 4px 0 8px; padding: 6px 10px; background: #f8f7f2; border-radius: 8px; font-size: 13px; }
+.abas-vista { display: flex; align-items: center; gap: 4px; color: var(--suave); }
+.abas-vista button { padding: 3px 10px; font-size: 12.5px; border-radius: 99px; background: #fff; border: 1px solid var(--borda); }
+.abas-vista button.on { background: #2b8a3e; border-color: #2b8a3e; color: #fff; }
+.mes-bloco { margin-bottom: 12px; }
+.mes-bloco h4 { margin: 0 0 4px; font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: #7048e8; }
+.mes-linha, .planta-linha { display: flex; gap: 10px; align-items: flex-start; padding: 5px 0; border-bottom: 1px solid #f0efe8; font-size: 13px; }
+.mes-linha .onde { flex: none; width: 130px; font-weight: 600; }
+.planta-linha .quem { flex: none; width: 170px; }
+.mes-linha .itens, .planta-linha .itens { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.item-plano { display: inline-flex; align-items: center; gap: 4px; background: #fff; border: 1px solid #e4e2d8; border-radius: 8px; padding: 2px 8px; }
+.item-plano small { color: var(--suave); }
+.item-plano input.qtd-plano { width: 50px; padding: 1px 4px; font-size: 12px; }
+.item-plano.zerada { opacity: .5; text-decoration: line-through; }
+.fora { opacity: .4; }
+.vezes { font-size: 11.5px; color: #7048e8; background: #f3f0ff; border-radius: 99px; padding: 0 6px; margin-left: 4px; }
+.seta-pl { color: var(--suave); }
+.gantt.preview tr.espaco th { font-size: 10.5px; color: var(--suave); font-weight: 400; }
+.gantt.preview tr.espaco td { height: 20px; vertical-align: bottom; padding: 0 3px; }
+.gantt.preview tr.espaco td i { display: block; background: #8ce99a; border-radius: 2px 2px 0 0; min-height: 1px; }
+.gantt.preview tr.espaco td i.mal { background: #ff8787; }
+/* Sugestão de plano: janela presa no alto e com largura fixa, para não "pular" ao trocar de vista */
+#modalPlano { align-items: flex-start; padding-top: 32px; }
+#modalPlano .caixa { width: min(920px, 100%); max-height: calc(100vh - 52px); }
+.mes-plano.ano-todo { margin-left: 6px; padding: 3px 10px; font-weight: 600; }
+
+/* Perfil da horta (menu ☰, início e janela do plano) */
+.perfil-horta label { display: block; margin-bottom: 8px; }
+.perfil-horta input[type=number] { width: 70px; margin-left: 6px; }
+.objetivos { display: grid; gap: 6px; margin: 6px 0; }
+.objetivo { display: grid !important; grid-template-columns: auto 1fr; gap: 0 8px; align-items: start; padding: 7px 10px; border: 1px solid var(--borda); border-radius: 8px; cursor: pointer; margin: 0 !important; }
+.objetivo input { grid-row: span 2; margin-top: 3px; }
+.objetivo span { font-size: 12px; color: var(--suave); }
+.objetivo.on { border-color: #8ce99a; background: #ebfbee; }
+.perfil-plano { gap: 6px 8px; }
+.perfil-plano input[type=number] { width: 54px; padding: 3px 6px; border: 1px solid var(--borda); border-radius: 6px; }

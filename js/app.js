@@ -104,6 +104,7 @@ function migrar(e) {
   // O tipo "Flores e temperos" deixou de existir: essas áreas viram canteiros (cor e plantas continuam)
   for (const z of e.zonas) if (z.tipo === 'bordadura') z.tipo = 'canteiro';
   if (!Array.isArray(e.diario)) e.diario = [];
+  if (!e.perfil) e.perfil = { pessoas: 2, objetivo: 'fresco' };   // quem come da horta (quantidades)
   if (e.local.definido === undefined) e.local.definido = true;
   if (!e.inicio) e.inicio = { passos: false, semArvores: false };   // hortas antigas: sem checklist
   if (!e.clima || typeof e.clima !== 'object') e.clima = { ativo: false };
@@ -1131,6 +1132,7 @@ function atualizarPaineis() {
   renderCalendario();
   renderDiario();
   atualizarArquivo();
+  renderPerfil();
 }
 
 // Liga um campo de texto ao estado, com um único "desfazer" por edição
@@ -1333,6 +1335,7 @@ montarBoasVindas();
 montarPrimeirosPassos();
 montarMenu();
 montarInstalar();
+montarPerfil();
 montarToque();
 montarPaineis();
 montarBandeja();

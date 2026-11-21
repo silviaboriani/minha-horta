@@ -162,7 +162,7 @@ function analiseHorta() {
         if (e.pos.length) {
           // Posicionada: cabe o que couber na área marcada
           maximo = Math.floor(e.posArea / ap + 1e-9);
-          if (e.qtd) pes = e.qtd; else sugestao = maximo;
+          if (e.qtd) pes = e.qtd; else sugestao = Math.min(maximo, quantidadeAlvo(p));
           if (maximo < 1) problemas.push({ nivel: 'mal', texto: `📍 A área marcada (${fmt(e.posArea, 2)} m²) é pequena demais — cada pé precisa de ~${fmt(ap, 2)} m²` });
           else if (e.qtd && e.qtd > maximo) problemas.push({ nivel: 'mal', texto: `📍 Na área marcada cabem só ${maximo} pés` });
           else if (!e.qtd && maximo < minPes(p)) problemas.push({ nivel: 'atencao', texto: `🔢 Na área marcada cabem só ${maximo} pés — marque mais espaço` });
@@ -174,12 +174,13 @@ function analiseHorta() {
           }
         } else {
           const fatia = Math.min(...ms.map(m => Math.max(0, area - usoMes[m]) / Math.max(1, semQtdMes[m])));
-          sugestao = Math.floor(fatia / ap + 1e-9);
+          const cabem = Math.floor(fatia / ap + 1e-9);
+          sugestao = Math.min(cabem, quantidadeAlvo(p));   // o que a casa precisa, sem passar do que cabe
           if (sugestao < 1) {
             problemas.push({ nivel: 'mal', texto: fatia <= 0
               ? '📏 Não sobra espaço para ela nos meses em que fica no canteiro — diminua outras plantas'
               : `📏 Não cabe: cada pé precisa de ~${fmt(ap, 2)} m² e sobram ~${fmt(fatia, 2)} m² para ela` });
-          } else if (sugestao < minPes(p)) {
+          } else if (cabem < minPes(p) && sugestao < minPes(p) && quantidadeAlvo(p) >= minPes(p)) {
             problemas.push({ nivel: 'atencao', texto: `🔢 Só cabem ~${sugestao} pés aqui — pouco para valer a pena (o ideal é ${minPes(p)} ou mais). Tire outra planta ou mude o mês.` });
           }
         }
@@ -653,7 +654,7 @@ function renderPlantio(z) {
         ? `<input type="number" min="0" step="1" class="qtd" data-qtd="${e}" value="${x.pes}" title="Quantos pés você quer plantar">
            <span>${fmt(x.pes * x.areaPe, 2)} m² · <span class="max ${x.pes > x.maximo ? 'mal' : ''}">${x.pes > x.maximo ? `cabem só ${x.maximo}` : `máx. ${x.maximo}`}</span></span>`
         : `<input type="number" min="0" step="1" class="qtd" data-qtd="${e}" placeholder="${x.sugestao || 0}" title="Quantos pés você quer plantar">
-           ${x.sugestao > 0 ? `<button class="usar" data-usar-sug="${e}" data-n="${x.sugestao}" title="Dividindo igualmente o espaço livre entre as plantas sem quantidade">💡 usar ~${x.sugestao}</button>` : ''}`;
+           ${x.sugestao > 0 ? `<button class="usar" data-usar-sug="${e}" data-n="${x.sugestao}" title="${semLimite() ? 'Dividindo igualmente o espaço livre entre as plantas sem quantidade' : `Para ${textoPerfil()} (perfil da horta), sem passar do que cabe`}">💡 usar ~${x.sugestao}</button>` : ''}`;
       const mes = `<select data-plantio="${e}" title="Mês em que ela vai para o canteiro (“·” = fora da época)">${MESES_CURTOS.map((m, i) =>
         `<option value="${i + 1}" ${i + 1 === x.inicio ? 'selected' : ''}>${m}${mesesDeIrProCanteiro(p).includes(i + 1) ? '' : ' ·'}</option>`).join('')}</select>`;
       const fim = p.perene ? 'a partir de ' + MESES_CURTOS[mesMais(x.inicio, cicloDe(p).c0) - 1] : faixaMeses(colheita);

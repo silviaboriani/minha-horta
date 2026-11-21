@@ -10,13 +10,13 @@
 //  A cada publicação, aumente VERSAO: o cache antigo é apagado e tudo
 //  (inclusive fotos trocadas com o mesmo nome) é baixado de novo.
 // =====================================================================
-const VERSAO = 'horta-v8';
+const VERSAO = 'horta-v9';
 
 const APP = [
   './', 'index.html', 'manifest.webmanifest', 'css/estilo.css',
   'img/icone.svg', 'img/icone-180.png', 'img/icone-192.png', 'img/icone-512.png', 'img/favicon-32.png',
   'js/exemplo.js', 'js/toque.js', 'js/dialogo.js', 'js/inicio.js', 'js/sol.js', 'js/plantas.js', 'js/fotos.js', 'js/plantas-ui.js',
-  'js/ciclo.js', 'js/plano.js', 'js/calendario.js', 'js/bandeja.js', 'js/sugerir.js', 'js/compras.js', 'js/diario.js',
+  'js/ciclo.js', 'js/plano.js', 'js/quantidades.js', 'js/calendario.js', 'js/bandeja.js', 'js/sugerir.js', 'js/compras.js', 'js/diario.js',
   'js/lembretes.js', 'js/clima.js', 'js/limpar.js', 'js/formas.js', 'js/menu.js', 'js/instalar.js', 'js/paineis.js', 'js/app.js',
 ];
 
