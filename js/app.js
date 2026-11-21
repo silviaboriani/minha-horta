@@ -105,6 +105,7 @@ function migrar(e) {
   for (const z of e.zonas) if (z.tipo === 'bordadura') z.tipo = 'canteiro';
   if (!Array.isArray(e.diario)) e.diario = [];
   if (!e.perfil) e.perfil = { pessoas: 2, objetivo: 'fresco' };   // quem come da horta (quantidades)
+  if (!Array.isArray(e.semPlano)) e.semPlano = [];                  // plantas tiradas do ✨ Sugerir plano
   if (e.local.definido === undefined) e.local.definido = true;
   if (!e.inicio) e.inicio = { passos: false, semArvores: false };   // hortas antigas: sem checklist
   if (!e.clima || typeof e.clima !== 'object') e.clima = { ativo: false };
@@ -778,8 +779,9 @@ document.addEventListener('keydown', ev => {
   if (ev.target.matches?.('input, textarea, select')) return;
   const tecla = ev.key.toLowerCase();
   const mod = ev.ctrlKey || ev.metaKey;
-  if (mod && tecla === 'z') { ev.preventDefault(); ev.shiftKey ? refazer() : desfazer(); return; }
-  if (mod && tecla === 'y') { ev.preventDefault(); refazer(); return; }
+  const planoAberto = !$('modalPlano').classList.contains('oculto');
+  if (mod && tecla === 'z') { ev.preventDefault(); if (!planoAberto) ev.shiftKey ? refazer() : desfazer(); return; }
+  if (mod && tecla === 'y') { ev.preventDefault(); if (!planoAberto) refazer(); return; }
   if (mod || modo === 'plantas' || modo === 'diario') return;
   if (ev.code === 'Space') {
     ev.preventDefault();
@@ -1279,9 +1281,9 @@ function montarArquivo() {
   $('btnExemplo').onclick = async () => {
     if (!(await perguntar({ titulo: 'Restaurar o exemplo?', texto: 'O mapa atual será trocado pelo exemplo (a horta da planilha). Dá para desfazer com Ctrl+Z.', ok: 'Restaurar exemplo', perigo: true }))) return;
     registrar();
-    const { local, norteGraus, norteDefinido, plantasEditadas, minhaLista } = estado;
+    const { local, norteGraus, norteDefinido, plantasEditadas, minhaLista, perfil, semPlano } = estado;
     estado = migrar(criarExemploHorta());
-    Object.assign(estado, { local, norteGraus, norteDefinido, plantasEditadas, minhaLista });
+    Object.assign(estado, { local, norteGraus, norteDefinido, plantasEditadas, minhaLista, perfil, semPlano });
     zonaAtiva = 6;
     objetoAtivo = null;
     mudou();
@@ -1297,6 +1299,7 @@ function montarArquivo() {
       local: estado.local, norteGraus: estado.norteGraus, norteDefinido: estado.norteDefinido,
       plantasEditadas: estado.plantasEditadas, minhaLista: estado.minhaLista,
       grupos: [], proximoGrupoId: 1, diario: estado.diario, clima: estado.clima,
+      perfil: estado.perfil, semPlano: estado.semPlano,
     });
     zonaAtiva = null;
     objetoAtivo = null;

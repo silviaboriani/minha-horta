@@ -82,16 +82,22 @@ function escolherMes(i) {
 //  Linha do tempo (ano inteiro)
 // ---------------------------------------------------------------------
 
-function celulasAno(e) {
-  return MESES_CURTOS.map((_, i) => {
+// Ordem dos meses (índices 0–11) começando em "inicio" (1–12): nov, dez, jan…
+const ordemMeses = inicio => Array.from({ length: 12 }, (_, k) => (inicio - 1 + k) % 12);
+// Opcional: "ordem" começa noutro mês e marca a virada do ano (antes de janeiro);
+// "mostrar(i)" esconde meses que são só o ciclo se repetindo
+function celulasAno(e, ordem, mostrar) {
+  const virada = ordem && ordem[0] !== 0;
+  return (ordem || ordemMeses(1)).map(i => {
     const m = i + 1;
+    if (mostrar && !mostrar(i)) return `<td class="${virada && i === 0 ? 'virada' : ''}" title="${MESES[i]}: fora do canteiro"></td>`;
     const st = e.p ? statusNoMes(e.p, e.inicio, m) : 'crescendo';
     const band = e.p && emBandeja(e.p, e.inicio, m);
     const cls = (e.p ? statusVisto(e.p, st) : st) || (band ? 'bandeja' : '');
     const vis = e.p ? statusVisto(e.p, st) : st;
     const icone = st === 'plantar' ? '🌱' : vis === 'florindo' ? '🌸' : st === 'colher' ? '🧺' : band && mesSemear(e.p, e.inicio) === m ? '🌰' : '';
     const titulo = st ? STATUS[e.p ? statusVisto(e.p, st) : st].nome : band ? STATUS.bandeja.nome : 'fora do canteiro';
-    return `<td class="${cls} ${i === mesSol ? 'sel' : ''}" title="${MESES[i]}: ${titulo}">${icone}</td>`;
+    return `<td class="${cls} ${i === mesSol ? 'sel' : ''} ${virada && i === 0 ? 'virada' : ''}" title="${MESES[i]}: ${titulo}">${icone}</td>`;
   }).join('');
 }
 
