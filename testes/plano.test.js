@@ -24,7 +24,7 @@
 
   // horta de exemplo, perfil conhecido, janela aberta com o ano todo
   function abrir(perfil = { pessoas: 2, objetivo: 'fresco' }, sobra = 'outras') {
-    estado = migrar(criarExemploHorta());
+    estado = migrar(criarExemploHorta()); invalidarSol();   // sem isso, sobra a análise (em cache) da horta anterior
     estado.perfil = perfil;
     estado.semPlano = [];
     Object.assign(opcoesPlano, { manter: true, repetir: true, sobra });
