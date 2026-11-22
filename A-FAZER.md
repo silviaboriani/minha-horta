@@ -26,6 +26,9 @@ Tudo no mesmo lugar, então vale fazer junto.
 - [ ] Ferramentas com o nome das categorias: Canteiro, Muro, Composteira, etc.
 - [ ] Três jeitos de desenhar: **retângulo**, **círculo** e **linha**.
 - [ ] Linha como no Illustrator: a área vai se fechando e já sai preenchida com a categoria escolhida.
+- [ ] **Juntar tudo num desenho só:** enquanto desenha os canteiros, poder também pôr as árvores (e construções) e escolher a direção do sol/norte. Hoje isso fica separado, na aba Sol e sombra.
+- [ ] Deixar claro que dá para desenhar **fora do terreno** definido (ex.: árvores do vizinho que fazem sombra).
+- [ ] Explicar que as primeiras medidas (nas boas-vindas) são do **terreno todo**, não de um canteiro. Hoje só há uma nota pequena no passo "Tamanho".
 
 **Decidir:** a linha que fecha a área vale para todas as categorias ou só para canteiros?
 
