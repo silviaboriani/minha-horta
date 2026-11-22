@@ -11,7 +11,7 @@ const DISTANCIA_VIZINHA_M = 1;   // áreas a até 1 m uma da outra são "vizinha
 
 let cacheAnalise = null;
 let buscaPlanta = '';
-let soListaPlano = true;
+let soListaPlano = false;   // "Só favoritos ★": começa desmarcado
 let ultimaAdicionada = null;     // { zona, id } — para mostrar as companheiras
 
 
@@ -265,6 +265,17 @@ function situacaoEspaco(zonaId) {
   return { tipo, ...SITUACAO[tipo], livre, area };
 }
 
+// Espaço livre (m²) do canteiro em todos os meses em que uma planta nova ficaria nele.
+// Plantas sem quantidade contam com o mínimo que vale a pena (igual à etiqueta do canteiro).
+function livreNosMeses(area, ents, ativos) {
+  const uso = m => ents.reduce((s, e) => s + (!e.p || !e.ativos.has(m) ? 0
+    : e.pos.length ? e.posArea : (e.qtd || minPes(e.p)) * areaDePe(e.p)), 0);
+  return Math.max(0, Math.min(...[...ativos].map(m => area - uso(m))));
+}
+const cabemPes = (livre, p) => Math.floor(livre / areaDePe(p) + 1e-9);
+// Não cabe: nem o mínimo de pés que vale a pena plantar
+const naoCabe = (livre, p) => cabemPes(livre, p) < Math.max(1, minPes(p));
+
 // Lista de sugestões (ou resultados da busca) para uma área
 // opc.mes: avaliar outro mês (ex.: quando a muda da bandeja fica pronta); opc.todas: ignora “Só favoritos”
 function sugestoesPara(z, texto, opc = {}) {
@@ -313,11 +324,8 @@ function sugestoesPara(z, texto, opc = {}) {
     const boasV = [...new Set(juntoViz.filter(v => saoAmigas(p.id, v.id)).map(v => v.id))].filter(id => !boas.includes(id));
     if (boasV.length) { pontos += Math.min(3, boasV.length); motivos.push({ nivel: 'bem', texto: `🤝 vizinha de ${boasV.slice(0, 3).map(nomePlanta).join(', ')}` }); }
 
-    // Espaço livre: igual à etiqueta do canteiro — plantas sem quantidade contam com o mínimo que vale a pena
-    const usoComMinimo = m => entsAqui.reduce((s, e) => s + (!e.p || !e.ativos.has(m) ? 0
-      : e.pos.length ? e.posArea : (e.qtd || minPes(e.p)) * areaDePe(e.p)), 0);
-    const livre = Math.max(0, Math.min(...[...ativos].map(m => area - usoComMinimo(m))));
-    const cabem = Math.floor(livre / areaDePe(p) + 1e-9);
+    const livre = livreNosMeses(area, entsAqui, ativos);
+    const cabem = cabemPes(livre, p);
     if (cabem < 1) { ok = false; motivos.push({ nivel: 'mal', texto: livre < area ? '📏 não cabe no espaço livre' : '📏 precisa de mais espaço' }); }
     else if (cabem < minPes(p)) { ok = false; motivos.push({ nivel: 'mal', texto: `📏 só cabem ${cabem}` }); }
     else if (livre < area) motivos.push({ nivel: 'info', texto: `📏 cabem até ${cabem}` });
@@ -327,7 +335,7 @@ function sugestoesPara(z, texto, opc = {}) {
     const repetida = p.cat === 'flores' ? [] : repetidaEmOutras(an, z.id, p.id, ativos);
     if (repetida.length) { pontos -= 4; etiquetas.push({ tipo: 'repetida', texto: `🔁 já plantada em ${repetida.slice(0, 2).map(v => v.nome).join(', ')}` }); }
     if (naLista(p.id)) pontos += 1;
-    return { p, ok, pontos, motivos, etiquetas };
+    return { p, ok, pontos, motivos, etiquetas, naoCabe: naoCabe(livre, p) };
   });
 
   return (t ? res : res.filter(r => r.ok))
@@ -354,7 +362,7 @@ const gruposAbertos = new Set();     // grupos com "ver mais" aberto
 
 function linhaSugestao(r) {
   const etiquetas = r.etiquetas.map(t => `<span class="tag-sug ${t.tipo}">${escapar(t.texto)}</span>`).join('');
-  return `<button class="sug ${r.ok ? '' : 'ruim'} ${r.etiquetas.length ? 'com-etiqueta' : ''}" data-add-planta="${escapar(r.p.id)}">
+  return `<button class="sug ${r.ok ? '' : 'ruim'} ${r.naoCabe ? 'nao-cabe' : ''} ${r.etiquetas.length ? 'com-etiqueta' : ''}" data-add-planta="${escapar(r.p.id)}"${r.naoCabe ? ' title="Não cabe no espaço livre deste canteiro"' : ''}>
       <span class="e">${escapar(r.p.emoji)}</span>
       <span class="n"><b>${escapar(r.p.nome)}</b>${naLista(r.p.id) ? ' <span class="estrela">★</span>' : ''}${r.p.nativa ? ' <span class="selo-nativa mini">nativa</span>' : ''}
         ${etiquetas ? `<span class="etiquetas">${etiquetas}</span>` : ''}
@@ -393,7 +401,6 @@ const compDesligadas = new Set();
 const COMP_INICIAIS = 8;          // companheiras mostradas antes do "ver mais"
 const compTodas = new Set();      // canteiros com todas as companheiras à mostra
 const plantasAbertas = new Set(); // "zona|entrada" das plantas abertas (com todos os controles)
-let adicionarZona = null;         // canteiro com a parte "＋ Adicionar planta" aberta
 
 // Companheiras com base em TODAS as plantas da área (as ligadas no filtro)
 function htmlCompanheiras(z) {
@@ -404,6 +411,9 @@ function htmlCompanheiras(z) {
   const an = analiseHorta();
   const horas = an.sol[z.id] ? an.sol[z.id].media : 12;
   const cabe = q => naEpoca(q, mes) && horas >= q.sol - 1.5;
+  const area = (contarCelulas()[z.id] || 0) * ladoM() * ladoM();
+  const ents = an.entradasPorZona[z.id] || [];
+  const semEspaco = q => naoCabe(livreNosMeses(area, ents, mesesAtivos(q, inicioPadrao(q, mes))), q);
 
   const candidatas = [];
   const evitar = new Set();
@@ -427,9 +437,11 @@ function htmlCompanheiras(z) {
 
   const todas = compTodas.has(z.id);
   const chips = candidatas.slice(0, todas ? 999 : COMP_INICIAIS).map(({ q, boas }) => {
+    const cheio = semEspaco(q);
     const motivo = `combina com ${boas.map(nomePlanta).join(', ')}` +
-      (cabe(q) ? '' : ` — fora de época ou sol curto agora (época: ${faixaMeses([...q.sem, ...q.tr])})`);
-    return `<button class="chip-add ${cabe(q) ? '' : 'fora'}" data-add-planta="${escapar(q.id)}" title="${escapar(motivo)}">` +
+      (cabe(q) ? '' : ` — fora de época ou sol curto agora (época: ${faixaMeses([...q.sem, ...q.tr])})`) +
+      (cheio ? ' — não cabe no espaço livre deste canteiro' : '');
+    return `<button class="chip-add ${cabe(q) ? '' : 'fora'} ${cheio ? 'nao-cabe' : ''}" data-add-planta="${escapar(q.id)}" title="${escapar(motivo)}">` +
       `${escapar(q.emoji)} ${escapar(q.nome)}${ativos.length > 1 ? ` <span class="qtd">${boas.length}</span>` : ''} +</button>`;
   }).join('');
 
@@ -633,14 +645,12 @@ function renderPlantio(z) {
   // trocou de canteiro (ou de aba): para de posicionar
   if (posicionando && (!z || posicionando.zona !== z.id || modo !== 'mapa' || editandoDesenho)) posicionando = null;
   const box = $('zPlantio');
-  if (!z || !TIPOS_PLANTAVEIS.includes(z.tipo)) { box.innerHTML = ''; return; }
+  if (!z || !TIPOS_PLANTAVEIS.includes(z.tipo)) { box.innerHTML = ''; $('zResumoArea').innerHTML = ''; return; }
   const an = analiseHorta();
   const info = an.porZona[z.id];
   const st = an.sol[z.id];
   const cl = st ? classeSol(st.media) : null;
 
-  if (adicionarZona !== null && adicionarZona !== z.id) adicionarZona = null;
-  const abrirAdicionar = adicionarZona === z.id || !(z.plantas || []).length || !!buscaPlanta;
   const linhas = (info?.plantas || []).map(x => {
     const p = x.id && plantaPorId(x.id);
     const nivel = x.problemas.some(q => q.nivel === 'mal') ? 'mal' : x.problemas.some(q => q.nivel === 'atencao') ? 'atencao' : '';
@@ -698,16 +708,15 @@ function renderPlantio(z) {
         <h4>Plantas desta área</h4>
         <span class="mes-plano">em ${MESES[mesSol].toLowerCase()}</span>
       </div>
-      ${htmlResumoArea(z, info, st, cl)}
       ${linhas ? `<ul class="plantas-area">${linhas}</ul>` : '<p class="nota">Nenhuma planta ainda. Escolha nas sugestões abaixo.</p>'}
-      ${abrirAdicionar ? `<div class="adicionar">
-        ${linhas ? '<button class="btn-adicionar on" data-alternar-adicionar>＋ Adicionar planta ▾</button>' : ''}
+      <div class="adicionar">
         ${htmlCompanheiras(z)}
         <input type="search" class="busca-planta" data-busca-planta placeholder="🔍 Buscar planta…" value="${escapar(buscaPlanta)}" autocomplete="off">
         ${temFavoritos() ? `<label class="check"><input type="checkbox" data-so-lista ${soListaPlano ? 'checked' : ''}> Só favoritos ★</label>` : ''}
         <div class="sugestoes" data-sugestoes>${htmlSugestoes(z)}</div>
-      </div>` : '<button class="btn-adicionar" data-alternar-adicionar>＋ Adicionar planta ▸</button>'}
+      </div>
     </div>`;
+  $('zResumoArea').innerHTML = htmlResumoArea(z, info, st, cl);
 }
 
 function adicionarPlanta(entrada) {
@@ -730,19 +739,12 @@ function adicionarPlanta(entrada) {
 
 function montarPlano() {
   const box = $('zPlantio');
-  box.addEventListener('click', ev => {
+  const aoClicar = ev => {
     const ab = ev.target.closest('[data-abrir-planta]');
     if (ab) {
       const k = `${zonaAtiva}|${ab.dataset.abrirPlanta}`;
       if (plantasAbertas.has(k)) plantasAbertas.delete(k); else plantasAbertas.add(k);
       renderPlantio(zonaPorId(zonaAtiva));
-      return;
-    }
-    if (ev.target.closest('[data-alternar-adicionar]')) {
-      adicionarZona = adicionarZona === zonaAtiva ? null : zonaAtiva;
-      buscaPlanta = '';
-      renderPlantio(zonaPorId(zonaAtiva));
-      if (adicionarZona !== null) box.querySelector('[data-busca-planta]')?.focus({ preventScroll: true });
       return;
     }
     if (ev.target.closest('[data-comp-todas]')) {
@@ -805,7 +807,9 @@ function montarPlano() {
       if (compDesligadas.has(k)) compDesligadas.delete(k); else compDesligadas.add(k);
       renderPlantio(zonaPorId(zonaAtiva));
     }
-  });
+  };
+  box.addEventListener('click', aoClicar);
+  $('zResumoArea').addEventListener('click', aoClicar);   // botões da faixa do topo
   box.addEventListener('input', ev => {
     if (!ev.target.matches('[data-busca-planta]')) return;
     buscaPlanta = ev.target.value;

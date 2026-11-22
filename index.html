@@ -227,8 +227,14 @@
         <div id="zMulti" class="z-multi oculto"></div>
         <p id="semZona" class="vazio">Toque numa área do mapa ou da lista à esquerda.</p>
         <div id="formZona" class="form">
+          <div id="zTopo" class="z-topo">
+            <div id="zTitulo" class="z-titulo"></div>
+            <div id="zResumoArea"></div>
+          </div>
+          <div id="zPlantio"></div>
+          <div id="zMedidasExatas"></div>
           <details id="zDetalhes" class="z-detalhes">
-          <summary id="zResumo"></summary>
+          <summary>✏️ Nome, tipo, cor e grupo</summary>
           <label>Nome <input id="zNome"></label>
           <div class="grade2">
             <label>Tipo <select id="zTipo"></select></label>
@@ -239,9 +245,8 @@
             <input id="zAltura" inputmode="decimal">
           </label>
           <div class="medidas" id="zMedidas"></div>
+          <button id="zSalvar" class="principal z-salvar">✓ Salvar</button>
           </details>
-          <div id="zPlantio"></div>
-          <div id="zMedidasExatas"></div>
           <details id="zMais" class="z-mais">
             <summary>⋯ Mais</summary>
             <div id="zAno"></div>

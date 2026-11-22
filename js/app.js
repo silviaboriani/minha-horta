@@ -1061,6 +1061,7 @@ function atualizarListaZonas() {
 }
 
 let formZonaId = null;   // qual área o formulário está mostrando
+let formDesenho = false; // e se estava desenhando (ao ligar/desligar o desenho, a edição abre/fecha)
 function atualizarFormZona() {
   const z = zonaPorId(zonaAtiva);
   $('secZona').classList.toggle('oculto', !z);
@@ -1085,9 +1086,9 @@ function atualizarFormZona() {
   if (!z) { formZonaId = null; return; }
   // Trocou de área: tira o foco do campo antigo e atualiza todos os campos
   // (senão um campo que ficou com foco continua mostrando a área anterior)
-  if (formZonaId !== z.id) {
+  if (formZonaId !== z.id || formDesenho !== editandoDesenho) {
     if ($('secZona').contains(document.activeElement)) document.activeElement.blur();
-    formZonaId = z.id;
+    formZonaId = z.id; formDesenho = editandoDesenho;
     // detalhes (nome, tipo, cor…) ficam recolhidos nos canteiros; abertos em caminhos, muros etc. e ao desenhar
     $('zDetalhes').open = !TIPOS_PLANTAVEIS.includes(z.tipo) || editandoDesenho;
   }
@@ -1104,12 +1105,21 @@ function atualizarFormZona() {
   if (ativo !== $('zAltura')) $('zAltura').value = z.altura || 0;
   $('zAlturaLinha').classList.toggle('oculto', !TIPOS_COM_ALTURA.includes(z.tipo));
   const md = medidasDaZona(z.id);
-  $('zResumo').innerHTML = `<span>${escapar(TIPOS[z.tipo]?.icone || '')} <b>${escapar(z.nome || 'Sem nome')}</b>` +
-    `${md.quadrados ? ` · ${fmt(md.area, 1)} m²` : ''}</span><span class="editar">✏️ editar</span>`;
+  // desenhando: a edição (nome, tipo…) vem logo abaixo do topo; planejando: lá embaixo
+  const depois = editandoDesenho ? $('zPlantio') : $('zMais');
+  if ($('zDetalhes').nextElementSibling !== depois) $('formZona').insertBefore($('zDetalhes'), depois);
+  renderTituloZona(z, md);
   $('zLimpar').classList.toggle('oculto', !TIPOS_PLANTAVEIS.includes(z.tipo) || !(z.plantas || []).length);
   $('zMedidas').innerHTML = md.quadrados
     ? `Área: <b>${fmt(md.area)} m²</b> (${md.quadrados} quadrados)<br>Tamanho: <b>${fmt(md.largura)} m × ${fmt(md.altura)} m</b>`
     : 'Ainda não foi desenhada no mapa. Use o <b>Retângulo</b> ou o <b>Pincel</b>.';
+}
+
+// Nome e área no topo do painel, com "✏️ editar" enquanto a edição está fechada
+function renderTituloZona(z, md = medidasDaZona(z.id)) {
+  $('zTitulo').innerHTML = `<span>${escapar(TIPOS[z.tipo]?.icone || '')} <b>${escapar(z.nome || 'Sem nome')}</b>` +
+    `${md.quadrados ? ` · ${fmt(md.area, 1)} m²` : ''}</span>` +
+    ($('zDetalhes').open ? '' : '<button class="editar" data-editar-area title="Mudar nome, tipo, cor e grupo">✏️ editar</button>');
 }
 
 function atualizarTerreno() {
@@ -1170,6 +1180,18 @@ function montarFormularios() {
 
   ligarCampo($('nomeHorta'), v => { estado.nome = v; });
   ligarCampo($('zNome'), v => { const z = zonaPorId(zonaAtiva); if (z) z.nome = v; });
+  // Edição da área: "✏️ editar" (no topo) abre lá embaixo; "Salvar" fecha (o que se digita já fica salvo)
+  $('zTitulo').addEventListener('click', ev => {
+    if (!ev.target.closest('[data-editar-area]')) return;
+    $('zDetalhes').open = true;
+    tituloDaZonaAtiva();
+    $('zNome').focus({ preventScroll: true });
+    $('zDetalhes').scrollIntoView({ block: 'start' });   // sem animação: no iPad briga com o teclado abrindo
+  });
+  $('zSalvar').onclick = () => { document.activeElement?.blur(); $('zDetalhes').open = false; tituloDaZonaAtiva(); };
+  // aberta/fechada pelo próprio título "Nome, tipo, cor e grupo": só o "✏️ editar" do topo muda
+  const tituloDaZonaAtiva = () => { const z = zonaPorId(zonaAtiva); if (z) renderTituloZona(z); };
+  $('zDetalhes').addEventListener('toggle', tituloDaZonaAtiva);
   ligarCampo($('zCor'), v => { const z = zonaPorId(zonaAtiva); if (z) z.cor = v; });
   ligarCampo($('zAltura'), v => {
     const z = zonaPorId(zonaAtiva);

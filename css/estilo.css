@@ -934,13 +934,10 @@ body { grid-template-columns: minmax(0, 1fr); }
 }
 
 /* ===== Painel da direita mais enxuto ===== */
-/* Detalhes do canteiro (nome, tipo, cor…) recolhidos numa linha */
-.z-detalhes > summary { display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer;
-  list-style: none; padding: 6px 8px; border-radius: 6px; background: #f6f6f1; font-size: 13.5px; }
+/* Edição do canteiro (nome, tipo, cor…): recolhida, lá embaixo */
+.z-detalhes > summary { cursor: pointer; list-style: none; padding: 4px 0; font-size: 13px; color: var(--suave); }
 .z-detalhes > summary::-webkit-details-marker { display: none; }
-.z-detalhes > summary .editar { font-size: 11.5px; color: var(--suave); white-space: nowrap; }
 .z-detalhes[open] > summary { margin-bottom: 8px; }
-.z-detalhes[open] > summary .editar { visibility: hidden; }
 /* Faixa: sol + ocupação + ✨ */
 .resumo-area { background: #f8f7f2; border-radius: 6px; padding: 6px 9px; font-size: 12.5px; margin-bottom: 8px; line-height: 1.4; }
 .resumo-area.mal { background: #fff5f5; color: #a61e1e; }
@@ -960,8 +957,6 @@ body { grid-template-columns: minmax(0, 1fr); }
 .plantas-area .linha-planta .seta { position: absolute; right: 0; top: 1px; color: var(--suave); font-size: 11px; }
 .plantas-area li.aberta .linha-planta { margin-bottom: 4px; }
 /* ＋ Adicionar planta */
-.btn-adicionar { width: 100%; margin: 2px 0 8px; font-weight: 600; }
-.btn-adicionar.on { background: #ebfbee; border-color: #8ce99a; }
 .adicionar .ver-mais { margin-top: 4px; }
 /* ⋯ Mais */
 .z-mais { margin-top: 10px; border-top: 1px solid #ecebe4; padding-top: 6px; }
@@ -1130,3 +1125,17 @@ html.toque .mes-plano { padding: 6px 8px; min-width: 40px; }
 
 /* Plano: espaçosa em canteiro pequeno → treliça */
 .trelica-pl { font-size: 12px; margin-left: 3px; cursor: help; flex: none; }
+
+/* ===== Painel do canteiro: topo fixo, edição embaixo, "não cabe" ===== */
+/* o topo ocupa a largura toda do painel (a seção tem 14px de margem interna: .painel section) */
+.z-topo { position: sticky; top: 0; z-index: 3; background: var(--painel); margin: 0 -14px 6px; padding: 6px 14px 2px;
+  box-shadow: 0 6px 6px -6px rgba(0,0,0,.12); }
+.z-titulo { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 14px; margin-bottom: 6px; }
+.z-titulo .editar { border: none; background: none; padding: 2px 4px; font-size: 11.5px; color: var(--suave); white-space: nowrap; cursor: pointer; }
+.z-titulo .editar:hover { color: var(--texto, #2b2b27); }
+.z-topo .resumo-area { margin-bottom: 4px; }
+.z-detalhes { margin-top: 10px; scroll-margin-top: 130px; }   /* ao abrir, não fica escondida sob o topo fixo */
+.z-salvar { width: 100%; margin-top: 8px; }
+.sug.nao-cabe { background: #fff5f5; border-color: #ffc9c9; }
+.sug.nao-cabe .n b, .sug.nao-cabe .e { color: #c92a2a; }
+.chip-add.nao-cabe { border-color: #ffa8a8; background: #fff5f5; color: #c92a2a; }

@@ -14,13 +14,14 @@ Pequenas, sem risco, mudam a cara do app logo.
 
 ## Etapa 2 — Painel do canteiro (painel da direita)
 Tudo no mesmo lugar, então vale fazer junto.
-- [ ] Informações do canteiro (sol, quanto está ocupado) **fixas no topo** ao rolar.
-- [ ] Edição da área (nome, tipo, cor, grupo) com botão **Salvar** que fecha a edição. ([print](a-fazer/area-selecionada.png))
-- [ ] Depois de pôr uma planta, já mostrar as que combinam com ela / a opção de adicionar mais, sem clique extra. ([print](a-fazer/plantas-da-area.png))
-- [ ] A parte de adicionar plantas vai para baixo das outras informações.
-- [ ] Plantas sugeridas que **não cabem** no espaço livre ficam marcadas.
+- [x] Informações do canteiro (sol, quanto está ocupado) **fixas no topo** ao rolar.
+- [x] Edição da área (nome, tipo, cor, grupo) com botão **Salvar** que fecha a edição. ([print](a-fazer/area-selecionada.png))
+- [x] Depois de pôr uma planta, já mostrar as que combinam com ela / a opção de adicionar mais, sem clique extra. ([print](a-fazer/plantas-da-area.png))
+- [x] A edição (nome, tipo, cor, grupo) vai para baixo, fechada (decidido: é ela que se usa pouco).
+- [x] Plantas sugeridas que **não cabem** no espaço livre ficam vermelhas (decidido: só a cor, com a explicação ao passar o mouse).
+- [x] Tirar o botão **"＋ Adicionar planta ▾"**: a parte de adicionar (companheiras, busca, sugestões) fica sempre à mostra.
+- [x] **"Só favoritos ★"** começa desmarcado.
 
-**Decidir:** a parte de adicionar plantas fica embaixo, no painel da direita, ou vai para o menu da esquerda? A marca de "não cabe" é uma etiqueta ou só a cor vermelha?
 
 ## Etapa 3 — Ferramentas de desenho
 - [ ] Ferramentas com o nome das categorias: Canteiro, Muro, Composteira, etc.
