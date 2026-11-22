@@ -108,6 +108,66 @@
     return (total > 0 && esp / total < 0.25) || `${esp} de ${total}`;   // sem canteiro grande, algumas de verão ainda entram
   });
 
+  teste('espaçosa de rama em canteiro pequeno ganha a dica de treliça (e só ela)', () => {
+    abrir();
+    const pequenos = estado.zonas.filter(z => z.tipo === 'canteiro' && /^Canteiro \d/.test(z.nome));
+    let comDica = 0;
+    for (let k = 0; k < 10; k++) {
+      propostaPlano.semente = k + 1;
+      for (const r of gerarPlano(pequenos, propostaPlano.inicio)) for (const x of r.novas) {
+        const deveria = precisaEspaco(x.p) && podeTrelica(x.p);
+        if (!!x.trelica !== deveria) return `${x.id} em ${r.zona.nome}: trelica=${x.trelica}`;
+        if (x.trelica) { comDica++; if (!x.motivos.some(m => m.includes('treliça'))) return `${x.id} sem o motivo`; }
+      }
+    }
+    // no maior canteiro não aparece
+    const maior = estado.zonas.filter(z => z.tipo === 'canteiro').sort((a, b) => (contarCelulas()[b.id] || 0) - (contarCelulas()[a.id] || 0))[0];
+    for (const r of gerarPlano([maior], propostaPlano.inicio)) for (const x of r.novas) if (x.trelica) return `${x.id} com treliça no maior canteiro`;
+    return comDica > 0 || 'nenhuma dica de treliça em 10 sugestões';
+  });
+
+  teste('🪜 aparece na linha da planta com a dica; não nas outras', () => {
+    abrir();
+    const x = propostaPlano.zonas.flatMap(r => r.novas)[0];
+    if (!x) return 'plano vazio';
+    x.trelica = true; vistaPlano = 'mes'; renderModalPlano();
+    const noMes = document.querySelector('#modalPlano .trelica-pl');
+    vistaPlano = 'planta'; renderModalPlano();
+    const naPlanta = document.querySelector('#modalPlano .trelica-pl');
+    x.trelica = false; vistaPlano = 'canteiro'; renderModalPlano();
+    if (!noMes || !naPlanta) return 'faltou nas vistas Mês/Planta';
+    const sem = linhaPreview(x, true, '0|0'), com = linhaPreview({ ...x, trelica: true }, true, '0|0');
+    return (!sem.includes('🪜') && com.includes('🪜') && !linhaPreview({ ...x, trelica: true }, false, '0|0').includes('🪜')) || 'marca errada';
+  });
+
+  teste('alternarAnoTodo: marca tudo e volta aos meses de antes', () => {
+    const a = alternarAnoTodo(new Set([11, 3]), null, 11);
+    const b = alternarAnoTodo(a.sel, a.antes, 11);
+    const c = alternarAnoTodo(new Set([1,2,3,4,5,6,7,8,9,10,11,12]), null, 11);   // sem "antes": só o mês atual
+    return (a.sel.size === 12 && igual([...b.sel].sort((p, q) => p - q), [3, 11]) === true && igual([...c.sel], [11]) === true) || 'errado';
+  });
+
+  teste('"Ano todo" clicado duas vezes volta aos meses escolhidos; mexer num mês recomeça', () => {
+    abrir();   // abre com o ano todo marcado a partir de só o mês atual
+    clicar('[data-ano-todo]');
+    const atual = propostaPlano.inicio, outro = atual % 12 + 1;
+    if (igual([...opcoesPlano.mesesSel], [atual]) !== true) return 'não voltou ao mês atual';
+    clicar(`[data-mes-plano="${outro}"]`);
+    clicar('[data-ano-todo]');
+    if (opcoesPlano.mesesSel.size !== 12) return 'não marcou os 12';
+    clicar('[data-ano-todo]');
+    const volta = [...opcoesPlano.mesesSel].sort((p, q) => p - q).join();
+    if (volta !== [atual, outro].sort((p, q) => p - q).join()) return 'voltou para ' + volta;
+    clicar('[data-ano-todo]'); clicar(`[data-mes-plano="${outro}"]`);   // tirou um mês com tudo marcado
+    clicar('[data-ano-todo]');   // agora marca de novo (11 → 12)
+    if (opcoesPlano.mesesSel.size !== 12) return 'não marcou os 12 depois de mexer';
+    clicar('[data-ano-todo]');   // e volta aos 11 escolhidos à mão
+    if (opcoesPlano.mesesSel.size !== 11 || opcoesPlano.mesesSel.has(outro)) return 'não voltou aos 11';
+    clicar(`[data-mes-plano="${outro}"]`);   // 12 marcados à mão → "Ano todo" volta a só o mês atual
+    clicar('[data-ano-todo]');
+    return igual([...opcoesPlano.mesesSel], [atual]);
+  });
+
   teste('mudar uma regra e voltar devolve a mesma sugestão', () => {
     abrir();
     const a = foto();

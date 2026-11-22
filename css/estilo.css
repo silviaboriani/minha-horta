@@ -1127,3 +1127,6 @@ html.toque .mes-plano { padding: 6px 8px; min-width: 40px; }
 .gantt.preview .linha-pl { display: flex; align-items: center; gap: 3px; min-width: 0; }
 .gantt.preview .linha-pl .nome-pl { flex: 1 1 auto; min-width: 0; max-width: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .gantt.preview .linha-pl > :not(.nome-pl) { flex: none; }
+
+/* Plano: espaçosa em canteiro pequeno → treliça */
+.trelica-pl { font-size: 12px; margin-left: 3px; cursor: help; flex: none; }

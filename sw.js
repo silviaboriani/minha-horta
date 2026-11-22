@@ -10,7 +10,7 @@
 //  A cada publicação, aumente VERSAO: o cache antigo é apagado e tudo
 //  (inclusive fotos trocadas com o mesmo nome) é baixado de novo.
 // =====================================================================
-const VERSAO = 'horta-v10';
+const VERSAO = 'horta-v11';
 
 const APP = [
   './', 'index.html', 'manifest.webmanifest', 'css/estilo.css',
