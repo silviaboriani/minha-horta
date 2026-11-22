@@ -201,6 +201,41 @@
     return (tinha && tirou && foto() === a && !document.querySelector('.fora-plano')) || `tinha=${tinha} tirou=${tirou}`;
   });
 
+  // Digitar uma quantidade e clicar direto no × de outra planta, na ordem de eventos de cada aparelho
+  const ORDENS = {
+    'mouse': ['input', 'down', 'change', 'up', 'click'],
+    'toque (iPad/celular)': ['input', 'down', 'up', 'change', 'click'],
+    'iPad sem tirar o foco da caixa': ['input', 'down', 'up', 'click'],
+  };
+  for (const [aparelho, ordem] of Object.entries(ORDENS)) teste(`digitar quantidade e clicar no × não perde o clique (${aparelho})`, () => {
+    abrir();
+    const caixa = document.querySelector('#modalPlano tr.nova input.qtd-plano');
+    const [zi, j] = caixa.dataset.qtdPlano.split(':').map(Number);
+    const outra = propostaPlano.zonas.flatMap(r => r.novas).find(n => n.id !== propostaPlano.zonas[zi].novas[j].id);
+    const botao = document.querySelector(`#modalPlano [data-tirar-planta="${outra.id}"]`);
+    caixa.focus(); caixa.value = '3';
+    const passo = {
+      input: () => caixa.dispatchEvent(new Event('input', { bubbles: true })),
+      down: () => botao.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })),
+      up: () => botao.dispatchEvent(new PointerEvent('pointerup', { bubbles: true })),
+      change: () => { caixa.dispatchEvent(new Event('change', { bubbles: true })); caixa.blur(); },
+      click: () => botao.click(),
+    };
+    for (const p of ordem) passo[p]();
+    const ok = estado.semPlano.includes(outra.id) && Object.values(propostaPlano.editadas).includes(3);
+    clicar(`[data-voltar-planta="${outra.id}"]`);
+    return ok || `tirou=${estado.semPlano.includes(outra.id)} editadas=${JSON.stringify(propostaPlano.editadas)}`;
+  });
+
+  teste('sair da caixa de quantidade pelo teclado atualiza a janela na hora', () => {
+    abrir();
+    const caixa = document.querySelector('#modalPlano [data-qtd-plano="0:0"]');
+    caixa.value = '4';
+    caixa.dispatchEvent(new Event('change', { bubbles: true }));
+    const nova = document.querySelector('#modalPlano [data-qtd-plano="0:0"]');
+    return (nova !== caixa && nova.value === '4') || 'não redesenhou';
+  });
+
   teste('× aparece nas três vistas', () => {
     abrir();
     const n = {};

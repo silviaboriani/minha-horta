@@ -445,6 +445,31 @@ function fecharPlano() {
 
 function montarSugerir() {
   const modal = $('modalPlano');
+  // Digitou uma quantidade e clicou (ou tocou) noutro botão: a caixa perde o foco ("change") no meio do clique.
+  // Redesenhar ali trocaria o botão por outro e o clique se perderia. Então:
+  //  - o número é guardado a cada tecla (input), sem redesenhar;
+  //  - se o "change" vem no meio de um clique/toque, redesenha só depois que o clique chega.
+  let clicando = false, pendente = null;
+  modal.addEventListener('pointerdown', ev => { if (!ev.target.matches?.('.qtd-plano')) clicando = true; }, true);
+  document.addEventListener('pointercancel', () => { clicando = false; }, true);   // o toque virou rolagem
+  const redesenharJa = () => { clearTimeout(pendente); pendente = null; if (propostaPlano) renderModalPlano(); };
+  document.addEventListener('click', () => {
+    clicando = false;
+    if (pendente) setTimeout(redesenharJa, 0);   // depois que o clique fez o que tinha de fazer
+  }, true);
+  const redesenharQtd = () => {
+    if (!clicando) { redesenharJa(); return; }   // saiu da caixa pelo teclado
+    clearTimeout(pendente);
+    pendente = setTimeout(redesenharJa, 1500);   // se o clique não vier
+  };
+  const guardarQtd = caixa => {
+    const [zi, j] = caixa.dataset.qtdPlano.split(':').map(Number);
+    const x = propostaPlano.zonas[zi].novas[j];
+    x.qtd = Math.max(0, Math.floor(Number(caixa.value) || 0));
+    x.area = x.qtd * areaDePe(x.p);
+    propostaPlano.editadas[chaveEditada(propostaPlano.zonas[zi], x)] = x.qtd;
+  };
+  modal.addEventListener('input', ev => { if (ev.target.dataset.qtdPlano !== undefined && ev.target.value !== '') guardarQtd(ev.target); });
   modal.addEventListener('click', ev => {
     if (ev.target === modal) { fecharPlano(); return; }
     const acao = ev.target.closest('[data-plano]')?.dataset.plano;
@@ -483,12 +508,8 @@ function montarSugerir() {
     else if (ev.target.matches('[data-plano-sobra]')) { opcoesPlano.sobra = ev.target.value; regerarPlano(); }
     else if (ev.target.dataset.qtdPlano !== undefined) {
       // só muda a quantidade (não sorteia de novo)
-      const [zi, j] = ev.target.dataset.qtdPlano.split(':').map(Number);
-      const x = propostaPlano.zonas[zi].novas[j];
-      x.qtd = Math.max(0, Math.floor(Number(ev.target.value) || 0));
-      x.area = x.qtd * areaDePe(x.p);
-      propostaPlano.editadas[chaveEditada(propostaPlano.zonas[zi], x)] = x.qtd;
-      renderModalPlano();
+      guardarQtd(ev.target);
+      redesenharQtd();
     }
     else if (ev.target.dataset.aplicarZona !== undefined) {
       const r = propostaPlano.zonas[Number(ev.target.dataset.aplicarZona)];
