@@ -29,15 +29,19 @@ const grupoAutoDe = (tipo, e = estado) => (e.grupos || []).find(g => g.tipoAuto 
 const FERRAMENTAS_COM_PINCEL = ['pincel', 'borracha', 'meiaSombra', 'sombraTotal', 'limparSombra'];
 const FERRAMENTAS_DE_PINTAR = [...FERRAMENTAS_COM_PINCEL, 'balde', 'retangulo'];
 
+// Desenho: uma ferramenta por categoria (Canteiro, Caminho, Muro…), todas com id 'forma' e o seu tipo;
+// o jeito de desenhar (retângulo, círculo, linha) é escolhido logo abaixo (formas.js)
 const FERRAMENTAS = [
-  { id: 'forma', icone: '⬚', nome: 'Canteiros', tecla: 'F',
-    dica: 'Arraste no vazio para criar · arraste uma área para mover · alças para o tamanho · Ctrl+D duplica.' },
   { id: 'selecionar', icone: '👆', nome: 'Selecionar', tecla: 'V',
     dica: `${TXT.clique} numa área para ver os detalhes; arraste para mover. ${TOQUE ? 'Arraste no vazio' : 'Ctrl+clique ou arraste no vazio'} para escolher várias.` },
+  ...Object.entries(TIPOS).map(([tipo, t]) => ({ id: 'forma', tipo, icone: t.icone, nome: t.nome, tecla: tipo === 'canteiro' ? 'F' : '', dica: '' })),
+  // o que faz sombra: pode ficar fora do terreno
+  { id: 'arvore', icone: '🌳', nome: 'Árvore', tecla: 'A',
+    dica: `${TXT.clique} onde fica a árvore — <b>pode ser fora do terreno</b> (ex.: a árvore do vizinho).` },
+  { id: 'construcao', icone: '🏠', nome: 'Construção', tecla: 'C',
+    dica: 'Arraste para desenhar uma casa, galpão ou muro alto — <b>pode ser fora do terreno</b>.' },
   { id: 'pincel', icone: '🖌️', nome: 'Pincel', tecla: 'B',
     dica: 'Arraste para pintar com <b>{zona}</b>.' },
-  { id: 'retangulo', icone: '⬛', nome: 'Retângulo', tecla: 'R',
-    dica: `Arraste para desenhar um retângulo de <b>{zona}</b>. ${TOQUE ? 'Para apagar, use a Borracha.' : 'Segure Alt para apagar.'}` },
   { id: 'balde', icone: '🪣', nome: 'Preencher', tecla: 'G',
     dica: `${TXT.clique} para preencher o espaço com <b>{zona}</b>.` },
   { id: 'borracha', icone: '🧽', nome: 'Borracha', tecla: 'E',
@@ -51,7 +55,7 @@ let historico = [];
 let futuro = [];
 const vista = { zoom: 14, ox: 50, oy: 40 };
 let modo = 'mapa';                       // 'mapa' ou 'sol'
-const ferramentaPorModo = { mapa: 'selecionar', sol: 'objeto', plantas: null, diario: null };
+const ferramentaPorModo = { mapa: 'selecionar', sol: 'meiaSombra', plantas: null, diario: null };
 let editandoDesenho = false;              // aba Horta: false = planejar, true = ferramentas de desenho
 let ferramenta = 'selecionar';
 let tamPincel = 1;
@@ -173,8 +177,9 @@ function refazer() {
   depoisDeTrocarEstado();
 }
 function depoisDeTrocarEstado() {
-  if (!zonaPorId(zonaAtiva)) zonaAtiva = estado.zonas[0]?.id ?? null;
+  tracado = null;   // a linha pela metade era da horta de antes
   if (!objetoPorId(objetoAtivo)) objetoAtivo = null;
+  if (!zonaPorId(zonaAtiva)) zonaAtiva = objetoAtivo ? null : estado.zonas[0]?.id ?? null;
   mudou();
 }
 function atualizarBotoesHistorico() {
@@ -399,9 +404,14 @@ function desenharEm(g, W, H, escala, v, interativo) {
 
   if (modoCal) desenharFormas(g, X, Y);
 
-  if (modoSol) {
+  if (modoSol || (modoCal && editandoDesenho)) {
     desenharObjetosSol(g, v);
     desenharBussolaMapa(g, W);
+  }
+  // pondo árvore ou construção: lembrete de que vale fora do terreno
+  if (modoCal && editandoDesenho && (ferramenta === 'arvore' || ferramenta === 'construcao')) {
+    g.font = '600 12px system-ui, sans-serif'; g.fillStyle = '#5c5a50'; g.textBaseline = 'bottom';
+    g.fillText('Pode ficar fora do terreno também (árvore do vizinho, casa…)', X(0), Y(0) - 22);
   }
 
   // Pré-visualização do retângulo
@@ -548,7 +558,11 @@ function zoomCentro(fator) {
 function ajustar() {
   const w = areaMapa.clientWidth, h = areaMapa.clientHeight;
   // No modo Sol inclui as árvores e construções fora do terreno
-  const k = modo === 'sol' ? limitesSol() : { c0: 0, r0: 0, c1: estado.cols, r1: estado.rows };
+  let k = modo === 'sol' || editandoDesenho ? limitesSol() : { c0: 0, r0: 0, c1: estado.cols, r1: estado.rows };
+  if (modo === 'mapa' && editandoDesenho) {
+    const f = Math.max(celsPorMetro() * 1.5, (k.c1 - k.c0) * 0.08);   // folga fora do terreno, para pôr árvores e construções
+    k = { c0: k.c0 - f, r0: k.r0 - f, c1: k.c1 + f, r1: k.r1 + f };
+  }
   const lc = k.c1 - k.c0, lr = k.r1 - k.r0;
   const topo = modo === 'mapa' ? 48 : 0;   // espaço para a barra de meses
   const z = Math.min((w - 90) / lc, (h - 70 - topo) / lr);
@@ -623,6 +637,7 @@ canvas.addEventListener('pointerdown', ev => {
   }
   if (ev.button !== 0) return;
   if (modo === 'sol') { solPointerDown(ev, p); return; }
+  if (modo === 'mapa' && editandoDesenho && (ferramenta === 'arvore' || ferramenta === 'construcao')) { solPointerDown(ev, p); return; }
   if (modo === 'mapa' && editandoDesenho && formaPointerDown(ev, p)) { desenhar(); return; }
   if (modo === 'mapa' && posicionando && !editandoDesenho) {
     const antes = JSON.stringify(estado);
@@ -720,7 +735,7 @@ function soltar() {
   const pt = ponteiro;
   ponteiro = null;
   canvas.classList.remove('arrastando');
-  if (['moverZona', 'redim', 'novaForma', 'marquee'].includes(pt.modo)) {
+  if (['moverZona', 'redim', 'novaForma', 'marquee', 'pontoLinha'].includes(pt.modo)) {
     formaSoltar(pt);
   } else if (pt.modo === 'pos') {
     if (pt.alterou) { registrar(pt.antes); mudou(); }
@@ -780,6 +795,7 @@ document.addEventListener('keydown', ev => {
   const tecla = ev.key.toLowerCase();
   const mod = ev.ctrlKey || ev.metaKey;
   const planoAberto = !$('modalPlano').classList.contains('oculto');
+  if (mod && tecla === 'z' && !ev.shiftKey && tracado) { ev.preventDefault(); desfazerPontoTracado(); return; }
   if (mod && tecla === 'z') { ev.preventDefault(); if (!planoAberto) ev.shiftKey ? refazer() : desfazer(); return; }
   if (mod && tecla === 'y') { ev.preventDefault(); if (!planoAberto) refazer(); return; }
   if (mod || modo === 'plantas' || modo === 'diario') return;
@@ -791,14 +807,20 @@ document.addEventListener('keydown', ev => {
   if (tecla === '+' || tecla === '=') { zoomCentro(1.2); return; }
   if (tecla === '-') { zoomCentro(1 / 1.2); return; }
   if (tecla === '0') { ajustar(); return; }
+  // Linha sendo desenhada: Enter termina, Esc cancela, Backspace desfaz o último ponto
+  if (tracado && modo === 'mapa' && editandoDesenho) {
+    if (tecla === 'enter') { terminarTracado(); return; }
+    if (tecla === 'escape') { cancelarTracado(); return; }
+    if (tecla === 'backspace' || tecla === 'delete') { ev.preventDefault(); desfazerPontoTracado(); return; }
+  }
   if (tecla === 'escape' && posicionando) { posicionando = null; atualizarPaineis(); desenhar(); return; }
   if (tecla === 'escape' && ponteiro) { ponteiro = null; desenhar(); return; }
   if (tecla === 'escape' && zonasExtras.size) { limparSelecaoExtra(); atualizarPaineis(); desenhar(); return; }
-  if ((tecla === 'delete' || tecla === 'backspace') && modo === 'sol' && objetoAtivo) { excluirObjeto(); return; }
+  if ((tecla === 'delete' || tecla === 'backspace') && modo === 'mapa' && editandoDesenho && objetoAtivo) { ev.preventDefault(); excluirObjeto(); return; }
   if ((tecla === 'delete' || tecla === 'backspace') && modo === 'mapa' && zonaAtiva) { ev.preventDefault(); deletarZona(); return; }
   if (modo === 'mapa' && (tecla === 'arrowleft' || tecla === 'arrowright')) { escolherMes(mesSol + (tecla === 'arrowleft' ? -1 : 1)); return; }
-  const f = ferramentasAtuais().find(f => f.tecla.toLowerCase() === tecla);
-  if (f) escolherFerramenta(f.id);
+  const f = ferramentasAtuais().find(f => f.tecla && f.tecla.toLowerCase() === tecla);
+  if (f) { if (f.tipo) tipoNovaForma = f.tipo; escolherFerramenta(f.id); }
 });
 document.addEventListener('keyup', ev => {
   if (ev.code === 'Space') { espaco = false; canvas.classList.remove('mover'); desenhar(); }
@@ -811,18 +833,20 @@ document.addEventListener('keyup', ev => {
 // Liga/desliga as ferramentas de desenho da aba Horta
 function alternarDesenho(ligar) {
   editandoDesenho = ligar;
+  tracado = null;
   limparSelecaoExtra();
   ferramenta = ligar ? 'forma' : 'selecionar';
   if (ligar && vistaCal === 'ano') vistaCal = 'mes';
+  if (!ligar) objetoAtivo = null;
   montarFerramentas();
   aplicarVisibilidadeModo();
   atualizarPaineis();
-  desenhar();
+  ajustar();   // desenhando, aparece a folga fora do terreno
 }
 function atualizarBotaoDesenho() {
   $('btnEditarDesenho').innerHTML = editandoDesenho ? '✓ Terminar desenho' : '✏️ Editar desenho';
   $('notaDesenho').textContent = editandoDesenho
-    ? 'Desenhe canteiros, caminhos e muros. Ao acabar, toque em “✓ Terminar desenho”.'
+    ? 'Desenhe canteiros, caminhos e muros, ponha árvores e construções (também fora do terreno) e mostre onde fica o norte. Ao acabar, toque em “✓ Terminar desenho”.'
     : '';
 }
 
@@ -851,9 +875,10 @@ function montarFerramentas() {
   for (const f of ferramentasAtuais()) {
     const b = document.createElement('button');
     b.dataset.f = f.id;
-    b.title = `${f.nome} (${f.tecla})`;
-    b.innerHTML = `<span>${f.icone}</span><span>${f.nome}</span><span class="tecla">${f.tecla}</span>`;
-    b.onclick = () => escolherFerramenta(f.id);
+    if (f.tipo) b.dataset.tipo = f.tipo;
+    b.title = f.tecla ? `${f.nome} (${f.tecla})` : f.nome;
+    b.innerHTML = `<span>${f.icone}</span><span>${f.nome}</span>${f.tecla ? `<span class="tecla">${f.tecla}</span>` : ''}`;
+    b.onclick = () => { if (f.tipo) tipoNovaForma = f.tipo; escolherFerramenta(f.id); };
     box.appendChild(b);
   }
   document.querySelectorAll('#tamPincel button').forEach(b => {
@@ -863,21 +888,23 @@ function montarFerramentas() {
 
 function escolherFerramenta(id) {
   ferramenta = id;
+  tracado = null;   // linha pela metade não continua noutra ferramenta
   atualizarFerramentas();
   desenhar();
 }
 
 function atualizarFerramentas() {
-  document.querySelectorAll('#ferramentas button').forEach(b => b.classList.toggle('ativa', b.dataset.f === ferramenta));
+  document.querySelectorAll('#ferramentas button').forEach(b => b.classList.toggle('ativa',
+    b.dataset.f === ferramenta && (!b.dataset.tipo || b.dataset.tipo === tipoNovaForma)));
   document.querySelectorAll('#tamPincel button').forEach(b => b.classList.toggle('ativa', Number(b.dataset.t) === tamPincel));
   $('linhaPincel').classList.toggle('oculto', !FERRAMENTAS_COM_PINCEL.includes(ferramenta));
-  canvas.className = 'f-' + (ferramenta === 'objeto' ? 'selecionar' : ferramenta);
+  canvas.className = 'f-' + ferramenta;
   canvas.style.cursor = '';
   atualizarPainelFormas();
   const f = ferramentasAtuais().find(f => f.id === ferramenta) || ferramentasAtuais()[0];
   if (!f) return;
   const z = zonaPorId(zonaAtiva);
-  $('dica').innerHTML = f.dica.replace('{zona}', z ? escapar(z.nome) : '(escolha uma área)') +
+  $('dica').innerHTML = (f.id === 'forma' ? dicaForma() : f.dica).replace('{zona}', z ? escapar(z.nome) : '(escolha uma área)') +
     (TOQUE ? ' <span style="opacity:.6">· dois dedos: mover e zoom</span>' : ' <span style="opacity:.6">· Espaço + arrastar: mover</span>');
   // Posicionando uma planta dentro do canteiro
   if (modo === 'mapa' && typeof posicionando !== 'undefined' && posicionando) {
@@ -962,8 +989,9 @@ function itemZona(z, cont, lado) {
     if (editandoDesenho && (ev.ctrlKey || ev.metaKey || ev.shiftKey) && !ev.target.closest('.lixo')) { alternarNaSelecao(z.id); desenhar(); return; }
     limparSelecaoExtra();
     zonaAtiva = z.id;
+    objetoAtivo = null;
     if (ev.target.closest('.lixo')) { deletarZona(); return; }
-    if (editandoDesenho && ferramenta === 'borracha') ferramenta = 'retangulo';
+    if (editandoDesenho && ferramenta === 'borracha') escolherFerramenta('selecionar');
     atualizarPaineis();
     desenhar();
   };
@@ -972,18 +1000,18 @@ function itemZona(z, cont, lado) {
   return li;
 }
 
-// Árvore ou construção na lista: tocar leva para a aba Sol e sombra com ela selecionada
+// Árvore ou construção na lista: tocar abre o desenho com ela selecionada
 function itemObjeto(o) {
   const li = document.createElement('li');
   li.className = 'item-objeto';
   li.draggable = true;
   li.innerHTML = `<span class="amostra-ic">${o.tipo === 'arvore' ? '🌳' : '🏠'}</span><span class="nome">${escapar(o.nome)}</span>` +
-    `<span class="area">${fmt(o.altura, 1)} m</span><span class="ir" title="Editar em Sol e sombra">☀️ ›</span>`;
-  li.title = 'Fica na aba Sol e sombra (faz sombra na horta) — arraste para outro grupo';
+    `<span class="area">${fmt(o.altura, 1)} m</span><span class="ir" title="Editar no desenho">✏️ ›</span>`;
+  li.title = 'Faz sombra na horta — clique para editar no desenho; arraste para outro grupo';
   li.onclick = () => {
-    trocarModo('sol');
-    objetoAtivo = o.id; ferramenta = 'objeto';
-    ajustar(); atualizarPaineis(); desenhar();
+    if (modo !== 'mapa') trocarModo('mapa');
+    if (!editandoDesenho) alternarDesenho(true);
+    selecionarObjeto(o.id);
   };
   li.ondragstart = ev => { ev.dataTransfer.setData('text/plain', 'o:' + o.id); ev.dataTransfer.effectAllowed = 'move'; };
   alvoDeSoltar(li, grupoValido(o));
@@ -1328,6 +1356,13 @@ function montarArquivo() {
     mudou();
   };
 }
+
+// Aba Sol: "✏️ Editar no desenho" (árvores, construções e norte ficam no desenho)
+document.addEventListener('click', ev => {
+  if (!ev.target.closest('[data-ir-desenho]')) return;
+  trocarModo('mapa');
+  if (!editandoDesenho) alternarDesenho(true);
+});
 
 // ---------- Topo ----------
 $('btnDesfazer').onclick = desfazer;

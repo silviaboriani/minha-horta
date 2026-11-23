@@ -136,8 +136,10 @@ function renderBoasVindas() {
       </div>
       ${l ? `<div class="bv-ok">✓ ${escapar(l.nome || 'Local definido')} (${fmt(l.lat, 2)}, ${fmt(l.lon, 2)}) — hemisfério ${l.lat < 0 ? 'sul' : 'norte'}</div>` : ''}`;
   } else if (novo.passo === 3) {
-    corpo = `<h2>Qual o tamanho do terreno?</h2>
-      <p class="nota">O espaço todo onde a horta vai ficar (dá para mudar depois). Cada quadradinho do mapa vale 20 cm.</p>
+    corpo = `<h2>Qual o tamanho do terreno todo?</h2>
+      <p class="bv-destaque">📐 É o <b>espaço todo</b> onde a horta vai ficar — <b>não</b> o tamanho de um canteiro.
+        Os canteiros, caminhos e muros você desenha depois, dentro dele. Árvores e construções podem ficar até fora.</p>
+      <p class="nota">Dá para mudar depois. Cada quadradinho do mapa vale 20 cm.</p>
       <div class="bv-linha grande-txt">
         <label>Largura <input class="bv-campo curto" data-bv-campo="largura" value="${fmt(novo.largura, 1)}"> m</label>
         <span>×</span>
@@ -268,8 +270,8 @@ function passosIniciais() {
   return [
     { id: 'local', feito: estado.local.definido !== false, texto: '📍 Diga onde fica a horta', ir: 'sol' },
     { id: 'canteiros', feito: plantaveis.length > 0, texto: '✏️ Desenhe os canteiros', ir: 'desenho' },
-    { id: 'norte', feito: estado.norteDefinido, texto: '🧭 Mostre onde fica o norte', ir: 'sol' },
-    { id: 'sombra', feito: estado.objetos.length > 0 || estado.inicio?.semArvores, texto: '🌳 Marque árvores e construções que fazem sombra', ir: 'sol', semArvores: true },
+    { id: 'norte', feito: estado.norteDefinido, texto: '🧭 Mostre onde fica o norte', ir: 'desenho' },
+    { id: 'sombra', feito: estado.objetos.length > 0 || estado.inicio?.semArvores, texto: '🌳 Marque árvores e construções que fazem sombra', ir: 'desenho', semArvores: true },
     { id: 'plano', feito: plantaveis.some(z => (z.plantas || []).length), texto: '🌱 Planeje os canteiros (ou use ✨ Sugerir plano)', ir: 'plano' },
     { id: 'diario', feito: estado.diario.length > 0, texto: '📔 Faça o primeiro registro no diário', ir: 'diario' },
   ];

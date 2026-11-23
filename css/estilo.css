@@ -1139,3 +1139,17 @@ html.toque .mes-plano { padding: 6px 8px; min-width: 40px; }
 .sug.nao-cabe { background: #fff5f5; border-color: #ffc9c9; }
 .sug.nao-cabe .n b, .sug.nao-cabe .e { color: #c92a2a; }
 .chip-add.nao-cabe { border-color: #ffa8a8; background: #fff5f5; color: #c92a2a; }
+
+/* ===== Desenho: jeito de desenhar (retângulo, círculo, linha) ===== */
+.linha-forma { margin-top: 10px; font-size: 13px; color: var(--suave); display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px; }
+.linha-forma.oculto { display: none; }
+.linha-forma .seg button { font-size: 12px; padding: 3px 7px; }
+.tracado-acoes { flex-basis: 100%; display: flex; align-items: center; gap: 6px; }
+.tracado-acoes span { margin-right: auto; }
+.tracado-acoes button { font-size: 12px; padding: 3px 9px; }
+.linha-forma > span:first-child { flex-basis: 100%; }
+.linha-forma .seg { width: 100%; }
+.linha-forma .seg button { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 1px; line-height: 1.1; padding: 4px 2px; }
+
+/* Boas-vindas: o tamanho é do terreno todo */
+.bv-destaque { background: #fff9db; border: 1px solid #ffe066; border-radius: 8px; padding: 8px 10px; font-size: 13.5px; line-height: 1.45; margin: 6px 0 8px; }

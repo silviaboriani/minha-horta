@@ -85,12 +85,10 @@
             <button data-t="1">1</button><button data-t="2">2</button><button data-t="3">3</button><button data-t="5">5</button>
           </div>
         </div>
+        <div class="linha-forma oculto" id="linhaForma"></div>
       </section>
 
       <section id="secFormas" data-modo="mapa" data-desenho="sim" class="form">
-        <div id="opcoesForma">
-          <label>Ao desenhar, criar <select id="tipoForma"></select></label>
-        </div>
         <button id="btnFileira" title="Vários canteiros iguais, em fileira">▦ Criar vários canteiros…</button>
         <button id="btnCaminhos" title="Todo o espaço vazio do terreno vira caminho">👣 Preencher caminhos no espaço vazio</button>
       </section>
@@ -120,10 +118,6 @@
       </section>
 
       <section class="sec-zonas" data-modo="sol">
-        <h2>Árvores e construções <button class="info-btn" data-info title="O que é isto?" aria-label="Explicação">ⓘ</button></h2>
-        <p class="info-texto">Marque tudo o que faz sombra na horta, mesmo fora do terreno (árvore do vizinho, casa, galpão).</p>
-        <ul id="listaObjetos" class="lista-zonas"></ul>
-      </section>
     </aside>
 
     <div class="area-plantas" id="areaPlantas" data-modo="plantas"></div>
@@ -167,43 +161,12 @@
       </section>
 
       <section data-modo="sol">
-        <h2>2 · Onde fica o norte <span class="ok" id="okNorte"></span> <button class="info-btn" data-info title="O que é isto?" aria-label="Explicação">ⓘ</button></h2>
-        <p class="info-texto">Na horta, abra o app <b>Bússola</b> com o aparelho virado para o “topo” do mapa. O ângulo que aparecer é o quanto o norte está girado.</p>
-        <p class="aviso-inline" id="avisoNorte">Ainda não definido. Gire a agulha vermelha até o norte, ou use os botões.</p>
-        <div class="bussola-linha">
-          <canvas id="bussola" title="Arraste para girar"></canvas>
-          <div class="botoes-norte">
-            <button data-norte="0">↑ Norte em cima</button>
-            <button data-norte="90">→ Norte à direita</button>
-            <button data-norte="180">↓ Norte embaixo</button>
-            <button data-norte="270">← Norte à esquerda</button>
-          </div>
-        </div>
-        <label class="faixa">Ajuste fino <input type="range" id="sNorte" min="0" max="355" step="5"> <span id="sNorteTxt"></span></label>
-      </section>
-
-      <section data-modo="sol" id="formObjeto" class="form oculto">
-        <h2 id="oTitulo">Objeto selecionado</h2>
-        <label>Nome <input id="oNome"></label>
-        <div class="grade2">
-          <label>Altura (m) <input id="oAltura" inputmode="decimal"></label>
-          <label data-so="arvore">Largura da copa (m) <input id="oDiametro" inputmode="decimal"></label>
-        </div>
-        <label data-so="arvore">Folhas
-          <select id="oFolhas">
-            <option value="perene">Perene (folhas o ano todo)</option>
-            <option value="caduca">Caduca (perde as folhas no inverno)</option>
-          </select>
-        </label>
-        <div class="grade2" data-so="construcao">
-          <label>Largura (m) <input id="oLargura" inputmode="decimal"></label>
-          <label>Profundidade (m) <input id="oProfundidade" inputmode="decimal"></label>
-        </div>
-        <button id="oExcluir" class="perigo">Excluir</button>
+        <p class="nota">🌳 Árvores, 🏠 construções e 🧭 o norte agora ficam no desenho da horta.</p>
+        <button data-ir-desenho>✏️ Editar no desenho</button>
       </section>
 
       <section data-modo="sol">
-        <h2>3 · Sol em cada área <button class="info-btn" data-info title="O que é isto?" aria-label="Explicação">ⓘ</button></h2>
+        <h2>2 · Sol em cada área <button class="info-btn" data-info title="O que é isto?" aria-label="Explicação">ⓘ</button></h2>
         <p class="info-texto">Horas de sol direto num dia típico do mês, contando árvores, construções, muros e a sombra pintada. <b>Sol pleno</b>: 6 h ou mais · <b>meia-sombra</b>: 3 a 6 h · <b>sombra</b>: menos de 3 h. Compare dezembro e junho para ver a diferença entre verão e inverno.</p>
         <div class="grade2 alinhar-base form">
           <label>Mês <select id="sMes"></select></label>
@@ -257,6 +220,26 @@
         </div>
       </section>
 
+      <section data-modo="mapa" data-desenho="sim" id="formObjeto" class="form oculto">
+        <h2 id="oTitulo">Objeto selecionado</h2>
+        <label>Nome <input id="oNome"></label>
+        <div class="grade2">
+          <label>Altura (m) <input id="oAltura" inputmode="decimal"></label>
+          <label data-so="arvore">Largura da copa (m) <input id="oDiametro" inputmode="decimal"></label>
+        </div>
+        <label data-so="arvore">Folhas
+          <select id="oFolhas">
+            <option value="perene">Perene (folhas o ano todo)</option>
+            <option value="caduca">Caduca (perde as folhas no inverno)</option>
+          </select>
+        </label>
+        <div class="grade2" data-so="construcao">
+          <label>Largura (m) <input id="oLargura" inputmode="decimal"></label>
+          <label>Profundidade (m) <input id="oProfundidade" inputmode="decimal"></label>
+        </div>
+        <button id="oExcluir" class="perigo">Excluir</button>
+      </section>
+
       <section data-modo="mapa" data-desenho="sim">
         <h2>Terreno</h2>
         <div class="grade2">
@@ -264,6 +247,22 @@
           <label>Comprimento (m) <input type="number" id="tComp" step="0.2" min="1" max="100"></label>
         </div>
         <p class="nota" id="tInfo"></p>
+      </section>
+
+      <section data-modo="mapa" data-desenho="sim">
+        <h2>🧭 Onde fica o norte <span class="ok" id="okNorte"></span> <button class="info-btn" data-info title="O que é isto?" aria-label="Explicação">ⓘ</button></h2>
+        <p class="info-texto">Na horta, abra o app <b>Bússola</b> com o aparelho virado para o “topo” do mapa. O ângulo que aparecer é o quanto o norte está girado.</p>
+        <p class="aviso-inline" id="avisoNorte">Ainda não definido. Gire a agulha vermelha até o norte, ou use os botões.</p>
+        <div class="bussola-linha">
+          <canvas id="bussola" title="Arraste para girar"></canvas>
+          <div class="botoes-norte">
+            <button data-norte="0">↑ Norte em cima</button>
+            <button data-norte="90">→ Norte à direita</button>
+            <button data-norte="180">↓ Norte embaixo</button>
+            <button data-norte="270">← Norte à esquerda</button>
+          </div>
+        </div>
+        <label class="faixa">Ajuste fino <input type="range" id="sNorte" min="0" max="355" step="5"> <span id="sNorteTxt"></span></label>
       </section>
 
     </aside>

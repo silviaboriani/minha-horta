@@ -14,13 +14,8 @@ const ALTURA_PLANTA = 0.2;        // m: altura (acima do chão) onde medimos o s
 const FATOR_SOMBRA_MANUAL = [1, 0.5, 0.15]; // nada / meia-sombra / sombra pintada à mão
 const TIPOS_COM_ALTURA = ['muro', 'composteira', 'outro'];
 
+// (árvores, construções e o norte ficam no desenho da aba Horta)
 const FERRAMENTAS_SOL = [
-  { id: 'objeto', icone: '👆', nome: 'Selecionar', tecla: 'V',
-    dica: `${TXT.clique} numa árvore ou construção para editar; arraste para mover.` },
-  { id: 'arvore', icone: '🌳', nome: 'Árvore', tecla: 'A',
-    dica: `${TXT.clique} onde fica a árvore (pode ser fora do terreno).` },
-  { id: 'construcao', icone: '🏠', nome: 'Construção', tecla: 'C',
-    dica: 'Arraste para desenhar uma casa, galpão ou muro alto (pode ser fora do terreno).' },
   { id: 'meiaSombra', icone: '🌥️', nome: 'Meia-sombra', tecla: 'M',
     dica: 'Pinte onde fica na sombra parte do dia.' },
   { id: 'sombraTotal', icone: '☁️', nome: 'Sombra', tecla: 'S',
@@ -427,33 +422,43 @@ function pintarSombra(c, r, v) {
   return alterou;
 }
 
+// Desenho (Selecionar): clicou numa árvore ou construção? seleciona e começa a arrastar
+function pegarObjeto(p) {
+  const m = metrosDe(p);
+  const o = objetoEm(m);
+  if (!o) return false;
+  selecionarObjeto(o.id);
+  ponteiro = { sol: true, modo: 'arrastarObj', o, ini: m, ox: o.x, oy: o.y, antes: JSON.stringify(estado), moveu: false };
+  return true;
+}
+// Uma árvore/construção selecionada (e nenhuma área), com a ferramenta Selecionar
+function selecionarObjeto(id) {
+  objetoAtivo = id;
+  zonaAtiva = null;
+  limparSelecaoExtra();
+  escolherFerramenta('selecionar');
+  atualizarPaineis();
+  desenhar();
+}
+
+// Árvore nova onde o dedo/mouse soltou (pode ser fora do terreno)
+function porArvore(m) {
+  const antes = JSON.stringify(estado);
+  const n = estado.objetos.filter(o => o.tipo === 'arvore').length + 1;
+  const o = { id: estado.proximoObjId++, tipo: 'arvore', nome: `Árvore ${n}`, x: arred(m.x), y: arred(m.y), diametro: 4, altura: 6, folhas: 'perene', grupo: grupoAutoDe('arvore') };
+  estado.objetos.push(o);
+  registrar(antes);
+  selecionarObjeto(o.id);
+  mudou();
+  avisar('Árvore adicionada. Ajuste a altura e a largura da copa no painel à direita.');
+}
+
 function solPointerDown(ev, p) {
   const m = metrosDe(p);
   switch (ferramenta) {
-    case 'objeto': {
-      const o = objetoEm(m);
-      objetoAtivo = o ? o.id : null;
-      if (o) ponteiro = { sol: true, modo: 'arrastarObj', o, ini: m, ox: o.x, oy: o.y, antes: JSON.stringify(estado), moveu: false };
-      else { // clicou no vazio: arrasta o mapa
-        ponteiro = { modo: 'mover', x: ev.clientX, y: ev.clientY, ox: vista.ox, oy: vista.oy };
-        canvas.classList.add('arrastando');
-      }
-      atualizarPaineis();
-      desenhar();
+    case 'arvore':
+      ponteiro = { sol: true, modo: 'novaArvore', m };
       return;
-    }
-    case 'arvore': {
-      const antes = JSON.stringify(estado);
-      const n = estado.objetos.filter(o => o.tipo === 'arvore').length + 1;
-      const o = { id: estado.proximoObjId++, tipo: 'arvore', nome: `Árvore ${n}`, x: arred(m.x), y: arred(m.y), diametro: 4, altura: 6, folhas: 'perene', grupo: grupoAutoDe('arvore') };
-      estado.objetos.push(o);
-      objetoAtivo = o.id;
-      ferramenta = 'objeto';
-      registrar(antes);
-      mudou();
-      avisar('Árvore adicionada. Ajuste a altura e a largura da copa no painel à direita.');
-      return;
-    }
     case 'construcao':
       ponteiro = { sol: true, modo: 'novaConstrucao', ini: m, fim: m };
       desenhar();
@@ -487,6 +492,7 @@ function solPointerMove(p) {
 }
 
 function solSoltar(pt) {
+  if (pt.modo === 'novaArvore') { porArvore(pt.m); return; }
   if (pt.modo === 'arrastarObj' || pt.modo === 'pintarSombra') {
     if (pt.moveu || pt.alterou) { registrar(pt.antes); mudou(); }
   } else if (pt.modo === 'novaConstrucao') {
@@ -496,9 +502,8 @@ function solSoltar(pt) {
     const n = estado.objetos.filter(o => o.tipo === 'construcao').length + 1;
     const o = { id: estado.proximoObjId++, tipo: 'construcao', nome: `Construção ${n}`, ...k, altura: 3, grupo: grupoAutoDe('construcao') };
     estado.objetos.push(o);
-    objetoAtivo = o.id;
-    ferramenta = 'objeto';
     registrar(antes);
+    selecionarObjeto(o.id);
     mudou();
     avisar('Construção adicionada. Ajuste a altura no painel à direita.');
   }
@@ -667,20 +672,7 @@ function atualizarPaineisSol() {
   $('avisoNorte').classList.toggle('oculto', estado.norteDefinido);
   desenharBussolaPainel();
 
-  // 3. Árvores e construções
-  const ul = $('listaObjetos');
-  ul.innerHTML = '';
-  if (!estado.objetos.length) {
-    ul.innerHTML = '<li class="vazio-lista">Nenhuma ainda. Use as ferramentas 🌳 Árvore e 🏠 Construção.</li>';
-  }
-  for (const o of estado.objetos) {
-    const li = document.createElement('li');
-    li.classList.toggle('ativa', o.id === objetoAtivo);
-    li.innerHTML = `<span>${o.tipo === 'arvore' ? '🌳' : '🏠'}</span><span class="nome">${escapar(o.nome)}</span>` +
-      `<span class="area">${fmt(o.altura, 1)} m</span>`;
-    li.onclick = () => { objetoAtivo = o.id; ferramenta = 'objeto'; atualizarPaineis(); desenhar(); };
-    ul.appendChild(li);
-  }
+  // Árvore ou construção selecionada (no desenho)
   const o = objetoPorId(objetoAtivo);
   $('formObjeto').classList.toggle('oculto', !o);
   if (o) {
@@ -714,6 +706,7 @@ function atualizarPaineisSol() {
 
 function trocarModo(m) {
   if (m === modo) return;
+  tracado = null;
   ferramentaPorModo[modo] = ferramenta;
   modo = m;
   ferramenta = ferramentaPorModo[m];
@@ -723,6 +716,6 @@ function trocarModo(m) {
   atualizarPaineis();
   desenhar();
   if (m === 'sol' && !estado.norteDefinido) {
-    avisar('Primeiro passo: mostre onde fica o norte (painel à direita).');
+    avisar('Falta mostrar onde fica o norte: aba Horta → ✏️ Editar desenho (painel à direita).');
   }
 }

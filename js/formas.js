@@ -8,6 +8,17 @@
 // =====================================================================
 
 let tipoNovaForma = 'canteiro';
+// Jeito de desenhar a categoria escolhida
+const FORMAS_DESENHO = [
+  { id: 'ret', icone: '▭', nome: 'Retângulo' },
+  { id: 'circulo', icone: '◯', nome: 'Círculo' },
+  { id: 'linha', icone: '✎', nome: 'Linha' },
+];
+let formaDesenho = 'ret';
+// Linha sendo desenhada, ponto a ponto: { pontos: [{ x, y }] } em quadrados (x = coluna, y = linha)
+let tracado = null;
+// Muro/cerca: a linha fica aberta (uma cerca de um quadrado de largura); o resto fecha numa área
+const linhaAberta = () => tipoNovaForma === 'muro';
 // Seleção de várias áreas (só no modo desenho): zonaAtiva + as "extras"
 const zonasExtras = new Set();
 function zonasSelecionadas() {
@@ -89,9 +100,9 @@ function proximoNome(tipo) {
   return tipo === 'canteiro' || n ? `${base} ${n + 1}` : base;
 }
 
-function criarZonaRet(k, tipo, modelo) {
-  const cels = celsDoRet(k);
-  if (cels.some(i => !podeOcupar(i, -1))) return null;
+function criarZonaRet(k, tipo, modelo) { return criarZonaCelulas(celsDoRet(k), tipo, modelo); }
+function criarZonaCelulas(cels, tipo, modelo) {
+  if (!cels.length || cels.some(i => !podeOcupar(i, -1))) return null;
   const id = estado.proximoId++;
   const t = TIPOS[tipo];
   const z = {
@@ -102,6 +113,117 @@ function criarZonaRet(k, tipo, modelo) {
   estado.zonas.push(z);
   for (const i of cels) estado.celulas[i] = id;
   return z;
+}
+
+// ---------- Círculo e linha (funções puras: recebem medidas, devolvem quadrados) ----------
+// Quadrados com o centro dentro da elipse que cabe na caixa k
+function celsDoCirculo(k) {
+  const cx = (k.c0 + k.c1 + 1) / 2, cy = (k.r0 + k.r1 + 1) / 2;
+  const rx = (k.c1 - k.c0 + 1) / 2, ry = (k.r1 - k.r0 + 1) / 2;
+  const res = [];
+  for (let r = k.r0; r <= k.r1; r++) for (let c = k.c0; c <= k.c1; c++) {
+    const dx = (c + 0.5 - cx) / rx, dy = (r + 0.5 - cy) / ry;
+    if (dx * dx + dy * dy <= 1 && dentro(c, r)) res.push(r * estado.cols + c);
+  }
+  return res;
+}
+// Ponto (x, y) dentro do polígono? (raio horizontal: conta quantas bordas cruza)
+function dentroDoPoligono(x, y, pts) {
+  let dentroP = false;
+  for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+    const a = pts[i], b = pts[j];
+    if ((a.y > y) !== (b.y > y) && x < (b.x - a.x) * (y - a.y) / (b.y - a.y) + a.x) dentroP = !dentroP;
+  }
+  return dentroP;
+}
+// Área fechada: quadrados com o centro dentro do polígono
+function celsDoPoligono(pts) {
+  if (pts.length < 3) return [];
+  const xs = pts.map(p => p.x), ys = pts.map(p => p.y);
+  const c0 = Math.max(0, Math.floor(Math.min(...xs))), c1 = Math.min(estado.cols - 1, Math.ceil(Math.max(...xs)));
+  const r0 = Math.max(0, Math.floor(Math.min(...ys))), r1 = Math.min(estado.rows - 1, Math.ceil(Math.max(...ys)));
+  const res = [];
+  for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) if (dentroDoPoligono(c + 0.5, r + 0.5, pts)) res.push(r * estado.cols + c);
+  return res;
+}
+// Linha aberta (muro/cerca): os quadrados por onde ela passa
+function celsDaLinhaAberta(pts) {
+  const set = new Set();
+  const q = p => ({ c: Math.floor(p.x), r: Math.floor(p.y) });
+  if (pts.length === 1) { const a = q(pts[0]); if (dentro(a.c, a.r)) set.add(a.r * estado.cols + a.c); }
+  for (let i = 1; i < pts.length; i++) {
+    const a = q(pts[i - 1]), b = q(pts[i]);
+    linha(a.c, a.r, b.c, b.r, (c, r) => { if (dentro(c, r)) set.add(r * estado.cols + c); });
+  }
+  return [...set];
+}
+const celsDoTracado = pts => (linhaAberta() ? celsDaLinhaAberta(pts) : celsDoPoligono(pts));
+
+// Ponto do mapa para a linha: área fechada encaixa nos cantos dos quadrados; muro, no meio deles
+function pontoDoTracado(p) {
+  const x = (p.x - vista.ox) / vista.zoom, y = (p.y - vista.oy) / vista.zoom;
+  const lim = (v, max) => Math.min(max, Math.max(0, v));
+  return linhaAberta()
+    ? { x: lim(Math.floor(x), estado.cols - 1) + 0.5, y: lim(Math.floor(y), estado.rows - 1) + 0.5 }
+    : { x: lim(Math.round(x), estado.cols), y: lim(Math.round(y), estado.rows) };
+}
+const pertoPt = (a, b) => Math.hypot(a.x - b.x, a.y - b.y) < 0.6;
+
+// Clique com a Linha: primeiro ponto, pontos seguintes; no primeiro ponto (área) ou de novo no último, termina
+function pontoNoTracado(p) {
+  const pt = pontoDoTracado(p);
+  if (!tracado) { tracado = { pontos: [pt] }; atualizarFerramentas(); return; }
+  const ps = tracado.pontos;
+  if (!linhaAberta() && ps.length >= 3 && pertoPt(pt, ps[0])) { terminarTracado(); return; }
+  if (pertoPt(pt, ps[ps.length - 1])) { terminarTracado(); return; }
+  ps.push(pt);
+  atualizarFerramentas();
+}
+function terminarTracado() {
+  if (!tracado) return;
+  const ps = tracado.pontos;
+  const minimo = linhaAberta() ? 2 : 3;
+  if (ps.length < minimo) { avisar(linhaAberta() ? 'Marque pelo menos dois pontos.' : 'Marque pelo menos três pontos para fechar a área.'); return; }
+  const cels = celsDoTracado(ps);
+  const antes = JSON.stringify(estado);
+  const nz = criarZonaCelulas(cels, tipoNovaForma);
+  if (!nz) { avisar(cels.length ? 'Não dá para desenhar por cima de outra área (só por cima de caminho ou do vazio).' : 'A área ficou pequena demais.'); return; }
+  tracado = null;
+  zonaAtiva = nz.id;
+  objetoAtivo = null;
+  registrar(antes);
+  mudou();
+  atualizarFerramentas();
+  avisar(`“${nz.nome}” criado (${fmt(cels.length * metros(1) * metros(1), 1)} m²).`);
+}
+function cancelarTracado() { tracado = null; atualizarFerramentas(); desenhar(); }
+function desfazerPontoTracado() {
+  if (!tracado) return;
+  tracado.pontos.pop();
+  if (!tracado.pontos.length) tracado = null;
+  atualizarFerramentas(); desenhar();
+}
+
+// Dica da barra de baixo para a ferramenta de categoria
+function dicaForma() {
+  const nome = `<b>${escapar(TIPOS[tipoNovaForma].nome.toLowerCase())}</b>`;
+  if (formaDesenho === 'linha') return linhaAberta()
+    ? `${TXT.clique} ponto a ponto para traçar o ${nome}; ${TXT.clique.toLowerCase()} de novo no último ponto (ou Enter) para terminar · Esc cancela.`
+    : `${TXT.clique} ponto a ponto em volta da área; ${TXT.clique.toLowerCase()} no primeiro ponto (ou Enter) para fechar · Esc cancela.`;
+  return `Arraste no vazio para desenhar um ${formaDesenho === 'circulo' ? 'círculo' : 'retângulo'} de ${nome} · arraste uma área para mover · alças mudam o tamanho · Ctrl+D duplica.`;
+}
+
+// Linha logo abaixo das ferramentas: o jeito de desenhar e, com a linha pela metade, Terminar/Cancelar
+function renderLinhaForma() {
+  const box = $('linhaForma');
+  if (!box) return;
+  const mostrar = editandoDesenho && modo === 'mapa' && ferramenta === 'forma';
+  box.classList.toggle('oculto', !mostrar);
+  if (!mostrar) return;
+  box.innerHTML = `<span>Desenhar</span><div class="seg">${FORMAS_DESENHO.map(f =>
+    `<button data-forma-desenho="${f.id}" class="${f.id === formaDesenho ? 'ativa' : ''}" title="${f.nome}"><span>${f.icone}</span><span>${f.nome}</span></button>`).join('')}</div>` +
+    (tracado ? `<div class="tracado-acoes"><span>${tracado.pontos.length} ${tracado.pontos.length === 1 ? 'ponto' : 'pontos'}</span>
+      <button data-tracado="fim" class="principal">✓ Terminar</button><button data-tracado="cancelar">✕ Cancelar</button></div>` : '');
 }
 
 // ---------- Alças de redimensionar ----------
@@ -162,9 +284,11 @@ function formaPointerDown(ev, p) {
     return true;
   }
   const id = celula(p.c, p.r);
+  // o ponto entra ao soltar: se um 2º dedo começar um zoom (iPad), o toque é cancelado e não vira ponto
+  if (formaDesenho === 'linha' && (tracado || !(id > 0 && !ehCaminho(id)))) { ponteiro = { modo: 'pontoLinha', p }; return true; }
   if (id > 0 && !ehCaminho(id)) { pegarZona(ev, id, p, antes); return true; }
   if (id >= 0) {
-    ponteiro = { modo: 'novaForma', ini: limitar(p), fim: limitar(p), antes };
+    ponteiro = { modo: 'novaForma', forma: formaDesenho, ini: limitar(p), fim: limitar(p), antes };
     return true;
   }
   return false;
@@ -177,6 +301,7 @@ function pegarZona(ev, id, p, antes = JSON.stringify(estado)) {
   const sel = zonasSelecionadas();
   const grupo = sel.length > 1 && sel.includes(id) ? sel : [id];
   if (grupo.length === 1) { limparSelecaoExtra(); zonaAtiva = id; }
+  objetoAtivo = null;
   const zonas = grupo.map(zonaPorId);
   const podeMover = zonas.every(z => z.tipo !== 'muro');
   ponteiro = { modo: 'moverZona', ini: p, dc: 0, dr: 0, antes, ids: grupo, clicada: id,
@@ -185,6 +310,8 @@ function pegarZona(ev, id, p, antes = JSON.stringify(estado)) {
 }
 // Selecionar no modo desenho: área → pegar; vazio ou caminho → retângulo de seleção
 function selecionarNoDesenho(ev, p) {
+  if (pegarObjeto(p)) return;   // árvores e construções ficam por cima das áreas
+  objetoAtivo = null;
   const id = celula(p.c, p.r);
   if (id > 0 && !ehCaminho(id)) { pegarZona(ev, id, p); return; }
   ponteiro = { modo: 'marquee', ini: limitar(p), fim: limitar(p), somar: ev.ctrlKey || ev.metaKey || ev.shiftKey };
@@ -231,6 +358,7 @@ function celsMovidas(pt) {
 }
 
 function formaSoltar(pt) {
+  if (pt.modo === 'pontoLinha') { pontoNoTracado(pt.p); return true; }
   const z = zonaPorId(zonaAtiva);
   if (pt.modo === 'marquee') {
     const k = caixa(pt.ini, pt.fim);
@@ -272,9 +400,10 @@ function formaSoltar(pt) {
   }
   if (pt.modo === 'novaForma') {
     const k = caixa(pt.ini, pt.fim);
-    const nz = criarZonaRet(k, tipoNovaForma);
+    const nz = criarZonaCelulas(pt.forma === 'circulo' ? celsDoCirculo(k) : celsDoRet(k), tipoNovaForma);
     if (!nz) { avisar('Não dá para desenhar por cima de outra área (só por cima de caminho ou do vazio).'); return true; }
     zonaAtiva = nz.id;
+    objetoAtivo = null;
     registrar(pt.antes);
     mudou();
     avisar(`“${nz.nome}” criado (${medidaRet(k)}).`);
@@ -320,7 +449,21 @@ function desenharFormas(g, X, Y) {
     g.fillStyle = 'rgba(28,126,214,.08)'; g.fillRect(x, y, w, h);
     g.setLineDash([5, 4]); g.strokeStyle = '#1c7ed6'; g.lineWidth = 1.5; g.strokeRect(x + .5, y + .5, w - 1, h - 1); g.setLineDash([]);
   }
-  if (pt && pt.modo === 'novaForma') {
+  const pintaCels = (cels, ok, corZona) => {
+    g.globalAlpha = 0.55; g.fillStyle = ok ? corZona : '#ffa8a8';
+    for (const i of cels) { const c = i % cols, r = (i - c) / cols; g.fillRect(X(c), Y(r), X(c + 1) - X(c), Y(r + 1) - Y(r)); }
+    g.globalAlpha = 1;
+  };
+  if (pt && pt.modo === 'novaForma' && pt.forma === 'circulo') {
+    const k = caixa(pt.ini, pt.fim);
+    const cels = celsDoCirculo(k);
+    const ok = cels.every(i => podeOcupar(i, -1));
+    pintaCels(cels, ok, TIPOS[tipoNovaForma].cor);
+    g.setLineDash([5, 4]); g.strokeStyle = ok ? '#2b8a3e' : '#c92a2a'; g.lineWidth = 2;
+    g.beginPath(); g.ellipse((X(k.c0) + X(k.c1 + 1)) / 2, (Y(k.r0) + Y(k.r1 + 1)) / 2, (X(k.c1 + 1) - X(k.c0)) / 2, (Y(k.r1 + 1) - Y(k.r0)) / 2, 0, 0, Math.PI * 2);
+    g.stroke(); g.setLineDash([]);
+    rotuloMedida(g, medidaRet(k) + (ok ? '' : ' — não cabe'), X(k.c0), Y(k.r0), ok ? 'rgba(43,43,39,.88)' : '#c92a2a');
+  } else if (pt && pt.modo === 'novaForma') {
     const k = caixa(pt.ini, pt.fim);
     pintaRet(k, retLivre(k), TIPOS[tipoNovaForma].cor);
   } else if (pt && pt.modo === 'redim' && z) {
@@ -350,6 +493,27 @@ function desenharFormas(g, X, Y) {
       g.globalAlpha = 0.45; g.fillStyle = ok ? TIPOS[fileira.tipo || 'canteiro'].cor : '#ffa8a8'; g.fillRect(x, y, w, h); g.globalAlpha = 1;
       g.setLineDash([4, 3]); g.strokeStyle = ok ? '#2b8a3e' : '#c92a2a'; g.lineWidth = 1.5; g.strokeRect(x + .5, y + .5, w - 1, h - 1); g.setLineDash([]);
     }
+  }
+
+  // Linha sendo desenhada (com o pedaço até o mouse)
+  if (tracado) {
+    const ps = [...tracado.pontos];
+    if (cursor && cursor.x !== undefined) ps.push(pontoDoTracado(cursor));
+    const cels = celsDoTracado(ps);
+    const ok = cels.every(i => podeOcupar(i, -1));
+    pintaCels(cels, ok, TIPOS[tipoNovaForma].cor);
+    const XX = x => vista.ox + x * vista.zoom, YY = y => vista.oy + y * vista.zoom;
+    g.strokeStyle = ok ? '#2b8a3e' : '#c92a2a'; g.lineWidth = 2; g.setLineDash([5, 4]);
+    g.beginPath(); ps.forEach((p, i) => (i ? g.lineTo(XX(p.x), YY(p.y)) : g.moveTo(XX(p.x), YY(p.y))));
+    if (!linhaAberta() && ps.length > 2) g.closePath();
+    g.stroke(); g.setLineDash([]);
+    tracado.pontos.forEach((p, i) => {
+      const fecha = i === 0 && !linhaAberta() && tracado.pontos.length >= 3;   // o primeiro ponto fecha a área
+      g.beginPath(); g.arc(XX(p.x), YY(p.y), fecha ? 7 : 4, 0, Math.PI * 2);
+      g.fillStyle = fecha ? '#ebfbee' : '#fff'; g.fill(); g.strokeStyle = '#2b8a3e'; g.lineWidth = 2; g.stroke();
+    });
+    const ult = tracado.pontos[tracado.pontos.length - 1];
+    rotuloMedida(g, `${fmt(cels.length * metros(1) * metros(1), 1)} m²${ok ? '' : ' — não cabe'}`, XX(ult.x) + 8, YY(ult.y) - 4, ok ? undefined : '#c92a2a');
   }
 
   // Alças da área selecionada
@@ -554,8 +718,7 @@ function atualizarPainelFormas() {
   const sec = $('secFormas');
   if (!sec) return;
   sec.classList.toggle('oculto', !editandoDesenho);
-  $('opcoesForma').classList.toggle('oculto', ferramenta !== 'forma');
-  if (document.activeElement !== $('tipoForma')) $('tipoForma').value = tipoNovaForma;
+  renderLinhaForma();
 }
 
 function montarFormas() {
@@ -578,9 +741,12 @@ function montarFormas() {
     if (b.dataset.multi === 'deletar') { deletarZona(); return; }
     atualizarPaineis(); desenhar();
   });
-  const sel = $('tipoForma');
-  for (const [id, t] of Object.entries(TIPOS)) sel.insertAdjacentHTML('beforeend', `<option value="${id}">${t.icone} ${t.nome}</option>`);
-  sel.onchange = () => { tipoNovaForma = sel.value; };
+  $('linhaForma').addEventListener('click', ev => {
+    const f = ev.target.closest('[data-forma-desenho]');
+    if (f) { formaDesenho = f.dataset.formaDesenho; tracado = null; atualizarFerramentas(); desenhar(); return; }
+    const t = ev.target.closest('[data-tracado]');
+    if (t) { if (t.dataset.tracado === 'fim') terminarTracado(); else cancelarTracado(); }
+  });
   $('btnFileira').onclick = abrirFileira;
   montarFileira();
   $('btnCaminhos').onclick = preencherCaminhos;

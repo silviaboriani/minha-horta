@@ -24,14 +24,13 @@ Tudo no mesmo lugar, então vale fazer junto.
 
 
 ## Etapa 3 — Ferramentas de desenho
-- [ ] Ferramentas com o nome das categorias: Canteiro, Muro, Composteira, etc.
-- [ ] Três jeitos de desenhar: **retângulo**, **círculo** e **linha**.
-- [ ] Linha como no Illustrator: a área vai se fechando e já sai preenchida com a categoria escolhida.
-- [ ] **Juntar tudo num desenho só:** enquanto desenha os canteiros, poder também pôr as árvores (e construções) e escolher a direção do sol/norte. Hoje isso fica separado, na aba Sol e sombra.
-- [ ] Deixar claro que dá para desenhar **fora do terreno** definido (ex.: árvores do vizinho que fazem sombra).
-- [ ] Explicar que as primeiras medidas (nas boas-vindas) são do **terreno todo**, não de um canteiro. Hoje só há uma nota pequena no passo "Tamanho".
+- [x] Ferramentas com o nome das categorias: Canteiro, Muro, Composteira, etc.
+- [x] Três jeitos de desenhar: **retângulo**, **círculo** e **linha**.
+- [x] Linha como no Illustrator: a área vai se fechando e já sai preenchida com a categoria escolhida (decidido: muro/cerca fica como linha aberta, de um quadrado de largura).
+- [x] **Juntar tudo num desenho só:** enquanto desenha os canteiros, poder também pôr as árvores (e construções) e escolher a direção do sol/norte. (decidido: saíram da aba Sol e sombra, que ficou com local, sol por área e sombra pintada).
+- [x] Deixar claro que dá para desenhar **fora do terreno** definido (ex.: árvores do vizinho que fazem sombra).
+- [x] Explicar nas boas-vindas que as primeiras medidas são do **terreno todo**, não de um canteiro.
 
-**Decidir:** a linha que fecha a área vale para todas as categorias ou só para canteiros?
 
 ## Etapa 4 — Horta compartilhada (várias pessoas, ao vivo, com login)
 Pode andar em paralelo com as etapas 1–3, assim que o Firebase estiver criado.
