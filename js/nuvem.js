@@ -10,6 +10,7 @@
 //    junta as duas versões (mesclar.js) antes de gravar.
 //  • Mudou lá → chega ao vivo e é juntado com o que se mudou aqui.
 //  • Sem internet: fica guardado aqui e vai quando a conexão voltar.
+//  • Convite por link: a dona cria um link (vale 7 dias); quem abre e entra com Google entra na horta.
 //  • O código do Firebase só é baixado por quem usa a horta compartilhada.
 //  • Quem pode ler e gravar cada horta é decidido pelas regras do banco (firestore.rules).
 // =====================================================================
@@ -17,10 +18,10 @@
 const NUVEM_SDK = 'https://www.gstatic.com/firebasejs/12.0.0';
 const CHAVE_NUVEM = 'horta.nuvem.v1';   // neste aparelho: { entrou, hortas: { id: { base, versao } } }
 const ESPERA_ENVIO = 1500;              // ms depois da última mudança
-const EMAIL_OK = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const DIAS_CONVITE = 7;                 // o link de convite vale 7 dias
 
 const nuvem = {
-  usuario: null,      // { uid, email, nome } de quem entrou
+  usuario: undefined, // { uid, email, nome } de quem entrou; null = não entrou; undefined = ainda não se sabe
   carregando: false,
   id: null,           // horta compartilhada ligada agora
   dados: null,        // último documento que chegou (emails, dono…)
@@ -75,18 +76,23 @@ async function backendFirebase() {
     listar: async email => (await fs.getDocs(fs.query(fs.collection(db, 'hortas'), fs.where('emails', 'array-contains', email))))
       .docs.map(d => ({ id: d.id, ...d.data() })),
     apagar: id => fs.deleteDoc(ref(id)),
+    // entrar na horta com o código do link (as regras conferem o código e a validade)
+    entrarComConvite: (id, codigo, email) => fs.updateDoc(ref(id), { emails: fs.arrayUnion(email), ultimoCodigo: codigo }),
   };
 }
 
-// Liga o Firebase (uma vez). Nos testes, usarBackendNuvem(falso) entra no lugar.
-async function carregarNuvem() {
-  if (backendNuvem) return backendNuvem;
-  if (nuvem.carregando) return null;
-  nuvem.carregando = true; renderNuvem();
-  try { usarBackendNuvem(await backendFirebase()); }
-  catch (_) { mostrarStatusNuvem('Sem internet: a horta compartilhada conecta quando a conexão voltar.', 'aviso'); }
-  nuvem.carregando = false; renderNuvem();
-  return backendNuvem;
+// Liga o Firebase (uma vez). Quem chama enquanto ainda carrega espera o mesmo carregamento.
+let carregandoNuvem = null;
+function carregarNuvem() {
+  if (backendNuvem) return Promise.resolve(backendNuvem);
+  if (!carregandoNuvem) carregandoNuvem = (async () => {
+    nuvem.carregando = true; renderNuvem();
+    try { usarBackendNuvem(await backendFirebase()); }
+    catch (_) { mostrarStatusNuvem('Sem internet: a horta compartilhada conecta quando a conexão voltar.', 'aviso'); }
+    nuvem.carregando = false; carregandoNuvem = null; renderNuvem();
+    return backendNuvem;
+  })();
+  return carregandoNuvem;
 }
 function usarBackendNuvem(b) {
   backendNuvem = b;
@@ -261,18 +267,76 @@ async function compartilharHorta() {
     historico = []; futuro = [];   // "desfazer" não volta para antes de compartilhar
     ligarHorta();
     mudou();                        // grava aqui e manda a versão com o nuvemId
-    avisar('Horta compartilhada! Convide pessoas pelo e-mail da conta Google delas.');
+    avisar('Horta compartilhada! Crie um link de convite para chamar outras pessoas.');
   } catch (e) { avisar(textoErroNuvem(e)); }
 }
 
-async function convidarPessoa(email) {
-  email = String(email || '').trim().toLowerCase();
-  if (!EMAIL_OK.test(email)) { avisar('Esse e-mail não parece certo.'); return false; }
+// ---- Convite por link ----
+const codigoNovo = () => Array.from(crypto.getRandomValues(new Uint8Array(15)), b => b.toString(36).padStart(2, '0')).join('');
+const conviteValido = d => !!(d?.convite && d.conviteAte > Date.now());
+const linkConvite = (id, codigo) => `${location.origin}${location.pathname}?horta=${encodeURIComponent(id)}&convite=${encodeURIComponent(codigo)}`;
+
+// A dona cria (ou renova) o link; ele vale DIAS_CONVITE dias
+async function criarConvite() {
   try {
-    await backendNuvem.transacao(nuvem.id, d => (d.emails.includes(email) ? null : { emails: [...d.emails, email], versao: d.versao + 1 }));
-    avisar(`${email} pode abrir esta horta. Avise a pessoa: ela entra no app com essa conta Google e abre em ☰ → Horta compartilhada.`);
-    return true;
-  } catch (e) { avisar(textoErroNuvem(e)); return false; }
+    await backendNuvem.transacao(nuvem.id, d => ({ convite: codigoNovo(), conviteAte: Date.now() + DIAS_CONVITE * 864e5, versao: d.versao + 1 }));
+  } catch (e) { avisar(textoErroNuvem(e)); }
+}
+async function cancelarConvite() {
+  try {
+    await backendNuvem.transacao(nuvem.id, d => ({ convite: null, conviteAte: null, versao: d.versao + 1 }));
+    avisar('Link cancelado: quem ainda não entrou não consegue mais entrar com ele.');
+  } catch (e) { avisar(textoErroNuvem(e)); }
+}
+// Envia pelo menu de compartilhar do aparelho (WhatsApp, e-mail…) ou, no computador, pelo programa de e-mail
+function enviarConvite() {
+  const d = nuvem.dados;
+  if (!conviteValido(d)) return;
+  const link = linkConvite(nuvem.id, d.convite);
+  const texto = `Te convidei para a horta “${d.nome || 'Minha Horta'}” no app Minha Horta. Abra o link e entre com a sua conta Google:`;
+  if (navigator.share) navigator.share({ title: 'Convite — Minha Horta', text: texto, url: link }).catch(() => {});
+  else location.href = `mailto:?subject=${encodeURIComponent('Convite — Minha Horta')}&body=${encodeURIComponent(texto + '\n\n' + link)}`;
+}
+async function copiarConvite() {
+  const d = nuvem.dados;
+  if (!conviteValido(d)) return;
+  try { await navigator.clipboard.writeText(linkConvite(nuvem.id, d.convite)); avisar('Link copiado. Cole numa mensagem para quem você quer convidar.'); }
+  catch (_) { avisar('Não deu para copiar aqui. Use “Enviar convite”.'); }
+}
+
+// Abriu um link de convite: entra com Google (se precisar), entra na horta e abre
+async function aceitarConvite(id, codigo) {
+  const b = await carregarNuvem();
+  if (!b) { avisar('Sem internet para abrir o convite. Tente de novo quando a conexão voltar.'); return; }
+  for (let i = 0; i < 30 && nuvem.usuario === undefined; i++) await new Promise(r => setTimeout(r, 100));
+  if (!nuvem.usuario) {
+    if (!(await perguntar({ titulo: 'Convite para uma horta', texto: 'Você recebeu um convite para uma horta compartilhada. Entre com a sua conta Google para abrir.', ok: 'Entrar com Google' }))) return;
+    try { await b.entrar(); } catch (e) { if (e.code !== 'auth/popup-closed-by-user') avisar(textoErroNuvem(e)); return; }
+    for (let i = 0; i < 50 && !nuvem.usuario; i++) await new Promise(r => setTimeout(r, 100));
+    if (!nuvem.usuario) return;
+  }
+  try {
+    let d = null;
+    try { d = await b.ler(id); } catch (e) { if (e.code !== 'permission-denied') throw e; }   // ainda não está na horta
+    if (!d) await b.entrarComConvite(id, codigo, nuvem.usuario.email);
+  } catch (e) {
+    avisar(e.code === 'permission-denied' || e.code === 'not-found'
+      ? 'Este convite expirou ou foi cancelado. Peça um link novo para quem te convidou.' : textoErroNuvem(e));
+    return;
+  }
+  await abrirCompartilhada(id);
+  const ios = /iPad|iPhone/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  if (ios && !appInstalado()) setTimeout(() => avisar('Dica: se você usa o app pelo ícone da tela de início, abra-o e entre com Google lá também — a horta aparece em ☰ → Horta compartilhada.'), 4000);
+}
+// Link de convite na barra de endereço (?horta=…&convite=…): tira da barra e começa a aceitar
+function conviteNaEntrada() {
+  const p = new URLSearchParams(location.search);
+  const id = p.get('horta'), codigo = p.get('convite');
+  if (!id || !codigo) return;
+  history.replaceState(null, '', location.pathname);
+  nuvem.chegouPorConvite = true;              // app.js não abre as boas-vindas
+  $('modalInicio').classList.add('oculto');
+  aceitarConvite(id, codigo);
 }
 
 async function tirarPessoa(email) {
@@ -284,6 +348,9 @@ async function tirarPessoa(email) {
   try {
     await backendNuvem.transacao(nuvem.id, d => ({ emails: d.emails.filter(x => x !== email), versao: d.versao + 1 }));
     if (eu) desligarDestaHorta();
+    else if (conviteValido(nuvem.dados) && await perguntar({ titulo: 'Cancelar o link de convite também?',
+      texto: `${escapar(email)} ainda poderia voltar pelo link de convite, que vale até ${new Date(nuvem.dados.conviteAte).toLocaleDateString('pt-BR')}. Cancelando, quem ainda não entrou precisa de um link novo.`,
+      ok: 'Cancelar o link', cancelar: 'Manter o link' })) await cancelarConvite();
   } catch (e) {
     if (eu && (e.code === 'permission-denied' || e.code === 'not-found')) desligarDestaHorta();   // já estava fora
     else avisar(textoErroNuvem(e));
@@ -324,6 +391,7 @@ async function abrirCompartilhada(id) {
     gravarNuvemLocal(x => { x.hortas[id] = { base: d.estado, versao: d.versao }; });
     const e = migrar(JSON.parse(d.estado));
     e.nuvemId = id;
+    $('modalInicio').classList.add('oculto');   // boas-vindas não ficam por cima da horta aberta
     trocarDeProjeto(e);   // liga de novo à nuvem (nuvemTrocouDeProjeto)
     document.querySelector('[data-menu="fechar"]')?.click();
     avisar(`“${d.nome}” aberta. A horta que estava aqui ficou em Projetos guardados.`);
@@ -362,6 +430,18 @@ function mostrarStatusNuvem(texto, tipo = '') {
   if (caixa) { caixa.textContent = texto; caixa.className = 'nuvem-status ' + tipo; }
 }
 
+// Convite (só a dona): criar o link; com o link, enviar, copiar ou cancelar
+function htmlConvite() {
+  const d = nuvem.dados;
+  if (!conviteValido(d)) return `<button data-nuvem="criar-convite" class="principal">🔗 Criar link de convite</button>
+    <p class="nota">Quem abrir o link e entrar com uma conta Google entra na horta. O link vale ${DIAS_CONVITE} dias.</p>`;
+  const ate = new Date(d.conviteAte).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+  return `<div class="nuvem-convite"><button data-nuvem="enviar-convite" class="principal">📨 Enviar convite</button>
+      <button data-nuvem="copiar-convite">🔗 Copiar link</button></div>
+    <p class="nota">Quem abrir o link e entrar com uma conta Google entra na horta (vale até ${ate}). Você vê aqui quem entrou e pode tirar.
+      <button class="link" data-nuvem="cancelar-convite">Cancelar o link</button></p>`;
+}
+
 function renderNuvem() {
   const box = $('nuvemCaixa');
   if (!box) return;
@@ -382,9 +462,7 @@ function renderNuvem() {
         <div class="rotulo">Pessoas nesta horta</div>
         <ul class="nuvem-pessoas">${emails.map(e => `<li><span>${escapar(e)}${e === nuvem.dados.donoEmail ? ' <small>(dona)</small>' : ''}${e === u.email ? ' <small>(você)</small>' : ''}</span>
           ${(dono && e !== u.email) ? `<button class="link perigo" data-nuvem="tirar" data-email="${escapar(e)}">tirar</button>` : ''}</li>`).join('')}</ul>
-        <div class="nuvem-convite"><input type="email" id="nuvemEmail" placeholder="e-mail da conta Google" autocomplete="off">
-          <button data-nuvem="convidar">Convidar</button></div>
-        <p class="nota">A pessoa entra no app com essa conta Google e abre a horta aqui, em ☰ → Horta compartilhada.</p>
+        ${dono ? htmlConvite() : '<p class="nota">Para chamar mais gente, peça um link de convite à dona.</p>'}
         ${dono ? '<button data-nuvem="parar" class="perigo">Parar de compartilhar</button>'
           : `<button data-nuvem="tirar" data-email="${escapar(u.email)}">Sair desta horta</button>`}`;
     }
@@ -406,13 +484,18 @@ function montarNuvem() {
     if (a === 'entrar') entrarNuvem();
     else if (a === 'sair') sairNuvem();
     else if (a === 'compartilhar') compartilharHorta();
-    else if (a === 'convidar') { const i = $('nuvemEmail'); if (await convidarPessoa(i.value)) i.value = ''; }
+    else if (a === 'criar-convite') criarConvite();
+    else if (a === 'enviar-convite') enviarConvite();
+    else if (a === 'copiar-convite') copiarConvite();
+    else if (a === 'cancelar-convite') cancelarConvite();
     else if (a === 'tirar') tirarPessoa(b.dataset.email);
     else if (a === 'parar') pararDeCompartilhar();
     else if (a === 'abrir') abrirCompartilhada(b.dataset.id);
   });
-  box.addEventListener('keydown', ev => { if (ev.key === 'Enter' && ev.target.id === 'nuvemEmail') box.querySelector('[data-nuvem="convidar"]')?.click(); });
   renderNuvem();
   // quem já usa a horta compartilhada conecta ao abrir o app
   if (estado.nuvemId || lerNuvemLocal().entrou) carregarNuvem();
+  // abrir o menu já baixa o Firebase: assim "Entrar com Google" abre a janela na hora (o iPad bloqueia se demorar)
+  $('btnMenu').addEventListener('click', () => { if (!backendNuvem) carregarNuvem(); });
+  conviteNaEntrada();
 }

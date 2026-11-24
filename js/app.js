@@ -1408,4 +1408,4 @@ atualizarBotoesHistorico();
 new ResizeObserver(redimensionarCanvas).observe(areaMapa);
 redimensionarCanvas();
 ajustar();
-if (!estadoSalvo) abrirBoasVindas();
+if (!estadoSalvo && !nuvem.chegouPorConvite) abrirBoasVindas();   // quem chega por link de convite vai direto para a horta

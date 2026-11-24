@@ -9,11 +9,17 @@ service cloud.firestore {
       function eu() { return request.auth.token.email.lower(); }
       function pessoa() { return logada() && eu() in resource.data.emails; }
       function camposOk() {
-        return request.resource.data.keys().hasOnly(['nome', 'dono', 'donoEmail', 'emails', 'estado', 'versao', 'atualizadoEm', 'por'])
+        return request.resource.data.keys().hasOnly(['nome', 'dono', 'donoEmail', 'emails', 'estado', 'versao', 'atualizadoEm', 'por',
+                                                'convite', 'conviteAte', 'ultimoCodigo'])
           && request.resource.data.estado is string
           && request.resource.data.estado.size() < 900000
           && request.resource.data.emails is list
           && request.resource.data.emails.size() <= 50;
+      }
+      // o link de convite (código e validade) só a dona muda
+      function conviteIgual() {
+        return request.resource.data.get('convite', null) == resource.data.get('convite', null)
+          && request.resource.data.get('conviteAte', null) == resource.data.get('conviteAte', null);
       }
 
       // ler (e listar as compartilhadas comigo): só quem está na lista de e-mails
@@ -37,9 +43,22 @@ service cloud.firestore {
         && resource.data.donoEmail in request.resource.data.emails
         && request.resource.data.versao == resource.data.versao + 1
         && (request.resource.data.por == resource.data.por || request.resource.data.por == eu())
+        && (conviteIgual() || resource.data.dono == request.auth.uid)
+        && request.resource.data.get('ultimoCodigo', null) == resource.data.get('ultimoCodigo', null)
         && (request.resource.data.emails == resource.data.emails
             || resource.data.dono == request.auth.uid
             || request.resource.data.emails == resource.data.emails.removeAll([eu()]));
+
+      // entrar com o link de convite: quem ainda não está na lista se põe nela (só ela mesma),
+      // com o código certo e antes de o link vencer; não mexe em mais nada
+      allow update: if logada()
+        && !(eu() in resource.data.emails)
+        && resource.data.get('convite', null) is string
+        && request.resource.data.ultimoCodigo == resource.data.convite
+        && request.time.toMillis() < resource.data.conviteAte
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['emails', 'ultimoCodigo'])
+        && request.resource.data.emails == resource.data.emails.concat([eu()])
+        && resource.data.emails.size() < 50;
 
       // apagar (parar de compartilhar): só a dona
       allow delete: if logada() && resource.data.dono == request.auth.uid;

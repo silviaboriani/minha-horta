@@ -24,6 +24,7 @@
   window.gravarNuvemLocal = mudar => { const d = copia(memNuvem); mudar(d); memNuvem = d; };
   window.guardarProjetoAtual = () => { guardados++; return true; };
   window.perguntar = async () => true;
+  const avisos = []; const avisarOrig = avisar; window.avisar = m => { avisos.push(m); };
 
   const EU = { uid: 'u-silvia', email: 'silvia@exemplo.com', nome: 'Silvia' };
   // Firebase de mentira: documentos na memória, avisa quem está ouvindo, pode "ficar sem internet"
@@ -38,7 +39,17 @@
       entrar: async () => cbUsuario(EU),
       sair: async () => cbUsuario(null),
       criar: async dados => { if (b.offline) throw semRede(); const id = 'h' + (++n); docs[id] = copia(dados); avisarOuvintes(id); return id; },
-      ler: async id => (docs[id] ? copia(docs[id]) : null),
+      ler: async id => {
+        if (docs[id] && !docs[id].emails.includes(EU.email)) throw Object.assign(new Error('negado'), { code: 'permission-denied' });
+        return docs[id] ? copia(docs[id]) : null;
+      },
+      entrarComConvite: async (id, codigo, email) => {
+        const d = docs[id];
+        if (!d || !d.convite || d.convite !== codigo || !(d.conviteAte > Date.now()) || d.emails.includes(email))
+          throw Object.assign(new Error('negado'), { code: 'permission-denied' });
+        d.emails.push(email); d.ultimoCodigo = codigo; avisarOuvintes(id);
+      },
+      entraPessoa: (id, email) => { docs[id].emails.push(email); avisarOuvintes(id); },
       noMeio: null,
       gravados: [],   // cada versão que o app gravou (para ver se alguma "apagou" a de outra pessoa)   // função que roda entre a transação começar e ler o documento (outra pessoa gravando)
       transacao: async (id, mudar) => {
@@ -62,7 +73,7 @@
       negar: id => (erros[id] || []).forEach(e => setTimeout(() => e(Object.assign(new Error('negado'), { code: 'permission-denied' })), 0)),
       // outra pessoa grava pelo app dela
       outraPessoaMuda: (id, mudar) => { const e = JSON.parse(docs[id].estado); mudar(e); docs[id].estado = JSON.stringify(e); docs[id].versao++; avisarOuvintes(id); },
-      criarDeOutraPessoa: (nome, estadoObj) => { const id = 'h' + (++n); docs[id] = { nome, dono: 'u-outra', donoEmail: 'ana@exemplo.com', emails: ['ana@exemplo.com', EU.email], estado: JSON.stringify(estadoObj), versao: 3 }; return id; },
+      criarDeOutraPessoa: (nome, estadoObj, extra = {}) => { const id = 'h' + (++n); docs[id] = { nome, dono: 'u-outra', donoEmail: 'ana@exemplo.com', emails: ['ana@exemplo.com', EU.email], estado: JSON.stringify(estadoObj), versao: 3, ...extra }; return id; },
     };
     return b;
   }
@@ -246,23 +257,122 @@
   });
 
   // ---------------------------------------------------------------- pessoas
-  await teste('convidar: e-mail errado não vai; o certo entra em minúsculas', async () => {
+  await teste('convite: a dona cria o link (vale 7 dias) e aparecem "Enviar convite" e "Copiar link"', async () => {
     const b = await compartilhada();
-    const ruim = await convidarPessoa('ana@');
-    const bom = await convidarPessoa('  Ana@Exemplo.com ');
+    renderNuvem();
+    if (!document.querySelector('#nuvemCaixa [data-nuvem="criar-convite"]')) return 'sem o botão de criar link';
+    await criarConvite(); await espera(20);
     const d = b.docs[estado.nuvemId];
-    return (!ruim && bom && d.emails.includes('ana@exemplo.com') && d.versao === 3) || JSON.stringify(d.emails);
+    const dias = (d.conviteAte - Date.now()) / 864e5;
+    const link = linkConvite(estado.nuvemId, d.convite);
+    renderNuvem();
+    const botoes = ['enviar-convite', 'copiar-convite', 'cancelar-convite'].every(a => document.querySelector(`#nuvemCaixa [data-nuvem="${a}"]`));
+    return (d.convite.length >= 20 && dias > 6.9 && dias <= 7 && link.includes('?horta=' + estado.nuvemId + '&convite=' + d.convite) && botoes)
+      || JSON.stringify({ codigo: d.convite, dias, link, botoes });
   });
 
-  await teste('a lista mostra quem está na horta; a dona pode tirar outra pessoa', async () => {
+  await teste('quem entrou pelo link aparece na lista; a dona pode tirar', async () => {
     const b = await compartilhada();
-    await convidarPessoa('ana@exemplo.com'); await espera(20);
+    b.entraPessoa(estado.nuvemId, 'ana@exemplo.com'); await espera(20);
     renderNuvem();
-    const lista = $('nuvemCaixa').textContent;
     const botao = document.querySelector('#nuvemCaixa [data-nuvem="tirar"][data-email="ana@exemplo.com"]');
-    if (!lista.includes('ana@exemplo.com') || !botao) return 'lista sem a Ana ou sem o botão';
+    if (!$('nuvemCaixa').textContent.includes('ana@exemplo.com') || !botao) return 'lista sem a Ana ou sem o botão';
     await tirarPessoa('ana@exemplo.com');
     return !b.docs[estado.nuvemId].emails.includes('ana@exemplo.com') || 'não tirou';
+  });
+
+  await teste('abrir o link de convite: entra na horta e ela abre', async () => {
+    const b = await comecar();
+    const outra = migrar(criarExemploHorta()); outra.zonas[0].nome = 'Canteiro do convite';
+    const id = b.criarDeOutraPessoa('Horta da Ana', outra, { emails: ['ana@exemplo.com'], convite: 'codigo-certo-123', conviteAte: Date.now() + 864e5 });
+    await aceitarConvite(id, 'codigo-certo-123'); await espera(20);
+    return (b.docs[id].emails.includes(EU.email) && estado.nuvemId === id && !!zona('Canteiro do convite')) || `emails ${b.docs[id].emails}, aberta ${estado.nuvemId}`;
+  });
+
+  await teste('link vencido, cancelado ou com código errado: não entra e explica', async () => {
+    const b = await comecar();
+    const vencido = b.criarDeOutraPessoa('Vencida', migrar(criarExemploHorta()), { emails: ['ana@exemplo.com'], convite: 'abc', conviteAte: Date.now() - 1000 });
+    const cancelado = b.criarDeOutraPessoa('Cancelada', migrar(criarExemploHorta()), { emails: ['ana@exemplo.com'], convite: null, conviteAte: null });
+    const errado = b.criarDeOutraPessoa('Errada', migrar(criarExemploHorta()), { emails: ['ana@exemplo.com'], convite: 'certo', conviteAte: Date.now() + 864e5 });
+    avisos.length = 0;
+    await aceitarConvite(vencido, 'abc'); await aceitarConvite(cancelado, 'abc'); await aceitarConvite(errado, 'errado');
+    const entrou = [vencido, cancelado, errado].some(id => b.docs[id].emails.includes(EU.email));
+    return (!entrou && !estado.nuvemId && avisos.filter(m => /expirou ou foi cancelado/.test(m)).length === 3) || `entrou ${entrou}, avisos ${avisos}`;
+  });
+
+  await teste('abrir o link sem estar logada: pede para entrar com Google e depois entra', async () => {
+    const b = await comecar();
+    await b.sair(); await espera(10);
+    const id = b.criarDeOutraPessoa('Horta da Ana', migrar(criarExemploHorta()), { emails: ['ana@exemplo.com'], convite: 'xyz', conviteAte: Date.now() + 864e5 });
+    await aceitarConvite(id, 'xyz'); await espera(20);
+    return (!!nuvem.usuario && b.docs[id].emails.includes(EU.email) && estado.nuvemId === id) || 'não entrou';
+  });
+
+  await teste('já está na horta e abre o link de novo: só abre', async () => {
+    const b = await comecar();
+    const id = b.criarDeOutraPessoa('Horta da Ana', migrar(criarExemploHorta()), { convite: 'xyz', conviteAte: Date.now() + 864e5 });
+    await aceitarConvite(id, 'xyz'); await espera(20);
+    return (estado.nuvemId === id && b.docs[id].emails.filter(e => e === EU.email).length === 1) || 'duplicou ou não abriu';
+  });
+
+  await teste('cancelar o link: quem tentar com ele não entra', async () => {
+    const b = await compartilhada();
+    await criarConvite(); await espera(20);
+    const id = estado.nuvemId, codigo = b.docs[id].convite;
+    await cancelarConvite(); await espera(20);
+    b.docs[id].emails = ['outra@exemplo.com'];   // finge ser outra pessoa tentando (EU fora da lista)
+    let entrou = true;
+    try { await b.entrarComConvite(id, codigo, EU.email); } catch (_) { entrou = false; }
+    return (!entrou && b.docs[id].convite === null) || 'entrou com link cancelado';
+  });
+
+  await teste('quem não é a dona não cria link (pede à dona)', async () => {
+    const b = await comecar();
+    const id = b.criarDeOutraPessoa('Horta da Ana', migrar(criarExemploHorta()));
+    await abrirCompartilhada(id); await espera(20);
+    renderNuvem();
+    return (!document.querySelector('#nuvemCaixa [data-nuvem="criar-convite"]') && /peça um link/.test($('nuvemCaixa').textContent)) || 'convidada pode criar link';
+  });
+
+  await teste('o Firebase ainda carregando: quem chama de novo espera o mesmo carregamento (não dá "sem internet")', async () => {
+    desligarHorta(); backendNuvem = null; nuvem.usuario = null;
+    let vezes = 0;
+    const orig = backendFirebase;
+    window.backendFirebase = async () => { vezes++; await espera(50); return backendFalso(); };
+    const [a, b] = await Promise.all([carregarNuvem(), carregarNuvem()]);
+    window.backendFirebase = orig;
+    return (!!a && a === b && vezes === 1 && !nuvem.carregando) || `a ${!!a}, igual ${a === b}, vezes ${vezes}`;
+  });
+
+  await teste('abrir pelo convite: as boas-vindas não ficam por cima da horta', async () => {
+    const b = await comecar();
+    const id = b.criarDeOutraPessoa('Horta da Ana', migrar(criarExemploHorta()), { emails: ['ana@exemplo.com'], convite: 'abc', conviteAte: Date.now() + 864e5 });
+    $('modalInicio').classList.remove('oculto');
+    await aceitarConvite(id, 'abc'); await espera(20);
+    return ($('modalInicio').classList.contains('oculto') && estado.nuvemId === id) || 'boas-vindas por cima';
+  });
+
+  await teste('tirar alguém com o link valendo: oferece cancelar o link (senão a pessoa volta por ele)', async () => {
+    const b = await compartilhada();
+    await criarConvite(); await espera(20);
+    b.entraPessoa(estado.nuvemId, 'ana@exemplo.com'); await espera(20);
+    const perguntas = [];
+    const orig = perguntar; window.perguntar = async p => { perguntas.push(p.titulo); return true; };
+    await tirarPessoa('ana@exemplo.com'); await espera(20);
+    window.perguntar = orig;
+    return (perguntas.some(p => /link de convite/.test(p)) && !conviteValido(b.docs[estado.nuvemId])) || `perguntas ${perguntas}`;
+  });
+
+  await teste('link na barra de endereço: começa o convite e some da barra', async () => {
+    const antes = location.href;
+    history.replaceState(null, '', location.pathname + '?horta=h99&convite=abc');
+    let args = null;
+    const orig = aceitarConvite; window.aceitarConvite = (...a) => { args = a; };
+    conviteNaEntrada();
+    window.aceitarConvite = orig;
+    const limpou = !location.search;
+    history.replaceState(null, '', antes);
+    return (JSON.stringify(args) === '["h99","abc"]' && limpou) || `args ${JSON.stringify(args)}, limpou ${limpou}`;
   });
 
   await teste('horta compartilhada com você: aparece na lista e abre (a de antes vai para os projetos)', async () => {
@@ -340,6 +450,7 @@
   // volta ao normal: sem nuvem nesta aba, localStorage como antes
   desligarHorta(); backendNuvem = null; nuvem.usuario = null;
   Storage.prototype.setItem = setOrig; Storage.prototype.removeItem = removeOrig;
+  window.avisar = avisarOrig;
   estado = migrar(criarExemploHorta()); invalidarSol(); renderNuvem();
 
   const falhas = resultados.filter(r => !r.ok);
