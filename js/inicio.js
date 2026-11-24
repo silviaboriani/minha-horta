@@ -82,6 +82,7 @@ function trocarDeProjeto(novo) {
   montarFerramentas();
   mudou();
   ajustar();
+  nuvemTrocouDeProjeto();   // outra horta: liga (ou desliga) a horta compartilhada
 }
 
 function atualizarArquivo() {

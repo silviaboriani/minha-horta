@@ -1,0 +1,48 @@
+rules_version = '2';
+
+// Minha Horta — quem pode ler e gravar cada horta compartilhada (hortas/{id}).
+// Publicadas no console do Firebase (Firestore → Regras). Mantenha esta cópia igual à de lá.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /hortas/{id} {
+      function logada() { return request.auth != null && request.auth.token.email_verified == true; }
+      function eu() { return request.auth.token.email.lower(); }
+      function pessoa() { return logada() && eu() in resource.data.emails; }
+      function camposOk() {
+        return request.resource.data.keys().hasOnly(['nome', 'dono', 'donoEmail', 'emails', 'estado', 'versao', 'atualizadoEm', 'por'])
+          && request.resource.data.estado is string
+          && request.resource.data.estado.size() < 900000
+          && request.resource.data.emails is list
+          && request.resource.data.emails.size() <= 50;
+      }
+
+      // ler (e listar as compartilhadas comigo): só quem está na lista de e-mails
+      allow get, list: if pessoa();
+
+      // criar: a pessoa logada é a dona e está na lista; começa na versão 1
+      allow create: if logada()
+        && request.resource.data.dono == request.auth.uid
+        && request.resource.data.donoEmail == eu()
+        && request.resource.data.emails == [eu()]
+        && request.resource.data.versao == 1
+        && request.resource.data.por == eu()
+        && camposOk();
+
+      // mudar: quem está na lista; a dona não muda e continua na lista; a lista de pessoas só a dona muda
+      // (qualquer um pode se tirar); "por" é quem grava; cada gravação aumenta a versão em 1
+      allow update: if pessoa()
+        && camposOk()
+        && request.resource.data.dono == resource.data.dono
+        && request.resource.data.donoEmail == resource.data.donoEmail
+        && resource.data.donoEmail in request.resource.data.emails
+        && request.resource.data.versao == resource.data.versao + 1
+        && (request.resource.data.por == resource.data.por || request.resource.data.por == eu())
+        && (request.resource.data.emails == resource.data.emails
+            || resource.data.dono == request.auth.uid
+            || request.resource.data.emails == resource.data.emails.removeAll([eu()]));
+
+      // apagar (parar de compartilhar): só a dona
+      allow delete: if logada() && resource.data.dono == request.auth.uid;
+    }
+  }
+}

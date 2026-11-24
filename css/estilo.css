@@ -1153,3 +1153,17 @@ html.toque .mes-plano { padding: 6px 8px; min-width: 40px; }
 
 /* Boas-vindas: o tamanho é do terreno todo */
 .bv-destaque { background: #fff9db; border: 1px solid #ffe066; border-radius: 8px; padding: 8px 10px; font-size: 13.5px; line-height: 1.45; margin: 6px 0 8px; }
+
+/* ===== Horta compartilhada (menu ☰) ===== */
+.nuvem-caixa .nota { margin: 0 0 8px; }
+.nuvem-caixa > button { width: 100%; margin-bottom: 8px; }
+.nuvem-status { font-size: 13px; margin: 0 0 8px; color: var(--suave); }
+.nuvem-status.ok { color: var(--verde); }
+.nuvem-status.aviso { color: #c92a2a; }
+.nuvem-pessoas { list-style: none; margin: 0 0 8px; padding: 0; font-size: 13px; }
+.nuvem-pessoas li { display: flex; justify-content: space-between; align-items: center; gap: 6px; padding: 3px 0; border-bottom: 1px solid #f0efe8; }
+.nuvem-pessoas small { color: var(--suave); }
+.nuvem-convite { display: flex; gap: 6px; margin-bottom: 6px; }
+.nuvem-convite input { flex: 1; min-width: 0; padding: 5px 7px; border: 1px solid var(--borda); border-radius: 6px; }
+.st-nuvem { margin-right: 10px; }
+.st-nuvem.aviso { color: #c92a2a; }

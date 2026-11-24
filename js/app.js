@@ -150,6 +150,7 @@ function salvar() {
   try {
     localStorage.setItem(CHAVE, JSON.stringify(estado));
     $('stSalvo').textContent = '✓ Salvo';
+    nuvemMudou();   // horta compartilhada: manda as mudanças (nuvem.js)
   } catch (_) {
     $('stSalvo').textContent = 'Não foi possível salvar neste navegador — exporte o arquivo';
   }
@@ -1331,9 +1332,10 @@ function montarArquivo() {
   $('btnExemplo').onclick = async () => {
     if (!(await perguntar({ titulo: 'Restaurar o exemplo?', texto: 'O mapa atual será trocado pelo exemplo (a horta da planilha). Dá para desfazer com Ctrl+Z.', ok: 'Restaurar exemplo', perigo: true }))) return;
     registrar();
-    const { local, norteGraus, norteDefinido, plantasEditadas, minhaLista, perfil, semPlano } = estado;
+    const { local, norteGraus, norteDefinido, plantasEditadas, minhaLista, perfil, semPlano, nuvemId } = estado;
     estado = migrar(criarExemploHorta());
     Object.assign(estado, { local, norteGraus, norteDefinido, plantasEditadas, minhaLista, perfil, semPlano });
+    if (nuvemId) estado.nuvemId = nuvemId;
     zonaAtiva = 6;
     objetoAtivo = null;
     mudou();
@@ -1349,7 +1351,7 @@ function montarArquivo() {
       local: estado.local, norteGraus: estado.norteGraus, norteDefinido: estado.norteDefinido,
       plantasEditadas: estado.plantasEditadas, minhaLista: estado.minhaLista,
       grupos: [], proximoGrupoId: 1, diario: estado.diario, clima: estado.clima,
-      perfil: estado.perfil, semPlano: estado.semPlano,
+      perfil: estado.perfil, semPlano: estado.semPlano, ...(estado.nuvemId ? { nuvemId: estado.nuvemId } : {}),
     });
     zonaAtiva = null;
     objetoAtivo = null;
@@ -1395,6 +1397,7 @@ montarBoasVindas();
 montarPrimeirosPassos();
 montarMenu();
 montarInstalar();
+montarNuvem();
 montarPerfil();
 montarToque();
 montarPaineis();

@@ -33,12 +33,16 @@ Tudo no mesmo lugar, então vale fazer junto.
 
 
 ## Etapa 4 — Horta compartilhada (várias pessoas, ao vivo, com login)
-Pode andar em paralelo com as etapas 1–3, assim que o Firebase estiver criado.
-- [ ] **Silvia:** criar o projeto no Firebase e colar o `firebaseConfig` (passo a passo na conversa de 22/11/2026).
-- [ ] "Entrar com Google" e guardar a horta na nuvem.
-- [ ] Convidar pessoas por e-mail.
-- [ ] Atualizações ao vivo, funcionando também sem internet.
+Projeto Firebase `minha-horta-89936` (plano gratuito, banco em São Paulo). Regras em `firestore.rules` (publicadas).
+- [x] Criar o projeto no Firebase, login com Google, banco e regras.
+- [x] "Entrar com Google" e guardar a horta na nuvem.
+- [x] Convidar pessoas por e-mail (e tirar; sair da horta; parar de compartilhar).
+- [x] Atualizações ao vivo, funcionando também sem internet.
+- [ ] **Testar no iPad de verdade**, pelo ícone da tela de início: o login do Google pode não abrir no app instalado (aí o app avisa para usar pelo Safari).
+- [ ] Testar com uma 2ª conta Google de verdade: convidar, abrir, mudar ao mesmo tempo, "Sair desta horta".
 - [ ] Depois, se quiser: fotos do diário na nuvem (precisa do plano pago do Firebase; por enquanto ficam no aparelho).
+- Limitações conhecidas (por enquanto): quando chega mudança de outra pessoa, o "desfazer" é zerado;
+  se as duas mudarem **a mesma coisa**, vale a de quem enviou por último; duas abas abertas no mesmo aparelho podem se atrapalhar.
 
 ## Etapa 5 — Tutorial
 Fica por último de propósito: explica as telas, então é melhor fazer depois que o menu, o painel e as ferramentas mudarem.

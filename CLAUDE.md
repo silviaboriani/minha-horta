@@ -34,3 +34,6 @@ Publicado no GitHub Pages; a cada publicação, aumentar `VERSAO` em `sw.js`.
 - Usar `perguntar()`/`avisar()`, nunca `confirm()`/`prompt()`.
 - Perguntar antes de cada push/publicação.
 - Testes nunca alteram o `localStorage` real: usar `window.salvar = () => {}` e `estado = migrar(criarExemploHorta())`.
+- **Horta compartilhada:** ao mexer em `js/nuvem.js` ou em `firestore.rules`, conferir se as regras ainda aceitam o que o app grava
+  (campos, `versao` + 1, lista `emails`), rodar `testes/nuvem.test.js` e, se as regras mudaram, publicá-las de novo
+  no console do Firebase (projeto `minha-horta-89936` → Firestore → Regras). Os dois lados mudam juntos.
