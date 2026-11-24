@@ -440,13 +440,15 @@ function montarDetalhe() {
       const a = JSON.stringify(estado);
       const p = copiaEditavel(plantaAtiva);
       const outro = el.dataset.add === 'amigas' ? 'inimigas' : 'amigas';
-      p[outro] = p[outro].filter(x => x !== el.value);
+      // tira a relação contrária, também a que vem da cultura (tomate-cereja → tomate)
+      const nomesDele = nomesNaLista(plantaPorId(el.value) || { id: el.value });
+      p[outro] = p[outro].filter(x => !nomesDele.includes(x));
       if (!p[el.dataset.add].includes(el.value)) p[el.dataset.add].push(el.value);
-      // tira a relação contrária que a outra planta possa ter declarado
-      const q = plantaPorId(el.value);
-      if (q && q[outro].includes(plantaAtiva)) {
+      // e a que a outra planta possa ter declarado
+      const q = plantaPorId(el.value), meus = nomesNaLista(plantaPorId(plantaAtiva) || { id: plantaAtiva });
+      if (q && q[outro].some(x => meus.includes(x))) {
         const qq = copiaEditavel(el.value);
-        qq[outro] = qq[outro].filter(x => x !== plantaAtiva);
+        qq[outro] = qq[outro].filter(x => !meus.includes(x));
       }
       registrar(a);
       mudou();
@@ -493,10 +495,10 @@ function montarDetalhe() {
     if (rem) {
       const a = JSON.stringify(estado);
       const campo = rem.dataset.remover, alvo = rem.dataset.alvo;
-      // remove nos dois sentidos
+      // remove nos dois sentidos — também quando a relação vem da cultura (couve × tomate vale para o tomate-cereja)
       for (const [x, y] of [[plantaAtiva, alvo], [alvo, plantaAtiva]]) {
-        const q = plantaPorId(x);
-        if (q && q[campo].includes(y)) { const c = copiaEditavel(x); c[campo] = c[campo].filter(z => z !== y); }
+        const q = plantaPorId(x), nomes = nomesNaLista(plantaPorId(y) || { id: y });
+        if (q && q[campo].some(z => nomes.includes(z))) { const c = copiaEditavel(x); c[campo] = c[campo].filter(z => !nomes.includes(z)); }
       }
       registrar(a);
       mudou();

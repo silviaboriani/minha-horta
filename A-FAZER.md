@@ -46,9 +46,9 @@ Projeto Firebase `minha-horta-89936` (plano gratuito, banco em São Paulo). Regr
 ## Etapa 5 — Desenho mais fácil
 Da revisão geral de 24/11 (lista da Silvia + a minha).
 Erros:
-- [ ] Clicar fora do terreno seleciona o muro sozinho; não deveria.
-- [ ] "Criar vários canteiros": o muro continua selecionado junto com os canteiros novos.
-- [ ] "Preencher caminhos no espaço vazio" põe o caminho em "Sem grupo"; deveria ir para Caminhos.
+- [x] Clicar fora do terreno seleciona o muro sozinho; não deveria.
+- [x] "Criar vários canteiros": o muro continua selecionado junto com os canteiros novos.
+- [x] "Preencher caminhos no espaço vazio" põe o caminho em "Sem grupo"; deveria ir para Caminhos.
 Ferramentas:
 - [ ] Linha: terminar também ao encostar no ponto inicial (fecha a forma), com clique do botão direito ou com duplo clique (Enter já termina).
 - [ ] Um clique simples no vazio (sem arrastar) larga a ferramenta e volta para Selecionar.
@@ -68,8 +68,8 @@ Aparência:
 
 ## Etapa 6 — Plantas e canteiros
 Erros:
-- [ ] Canteiro com planta sem quantidade aparece "vazio" (a bolinha diz "cabe mais"): contar a quantidade sugerida, como a bolinha.
-- [ ] Vizinhas que não combinam: tomate é sugerido perto do milho. Hoje só conta como vizinha a área a até 1 m, e "não combina com milho" só vale para milho-verde, não para milho-pipoca. Deixar as inimizades valendo nos dois sentidos e rever a distância.
+- [x] Canteiro com planta sem quantidade aparece "vazio" (a bolinha diz "cabe mais"): contar a quantidade sugerida, como a bolinha.
+- [x] Vizinhas que não combinam: tomate é sugerido perto do milho. Hoje só conta como vizinha a área a até 1 m, e "não combina com milho" só vale para milho-verde, não para milho-pipoca. Deixar as inimizades valendo nos dois sentidos e rever a distância.
 Sugestões:
 - [ ] Ordem das sugestões: num canteiro pequeno as primeiras são quatro abóboras (empate vira ordem alfabética). Primeiro o que cabe bem e está na melhor época; não repetir variedades da mesma cultura no topo.
 - [ ] Em "Combinam com o que já está aqui", não mostrar a própria planta.

@@ -152,6 +152,36 @@
     return (Object.keys(zonaPorId(zonaAtiva).qtd).length === 2) || 'não preencheu';
   });
 
+  // ---- erros da revisão geral (24/11)
+  teste('planta sem quantidade: o canteiro não aparece "vazio" (conta como a bolinha)', () => {
+    const z = abrir();
+    Object.assign(z, { plantas: ['brocolis'], qtd: {}, plantio: { brocolis: mesSol + 1 } });
+    invalidarSol(); atualizarPaineis();
+    const txt = $('zResumoArea').textContent;
+    const sit = situacaoEspaco(z.id);
+    return (!/vazio/.test(txt) && /ocupado/.test(txt) && sit.tipo !== 'livre') || `"${txt.replace(/s+/g, ' ')}", bolinha ${sit.tipo}`;
+  });
+  teste('canteiro sem nenhuma planta não diz que está ocupado', () => {
+    const z = abrir();
+    Object.assign(z, { plantas: [], qtd: {}, plantio: {} });
+    invalidarSol(); atualizarPaineis();
+    return !/ocupado/.test($('zResumoArea').textContent) || $('zResumoArea').textContent;
+  });
+  teste('variedades valem como a cultura nas amigas e inimigas (couve × tomate-cereja, tomate-cereja × milho-pipoca)', () =>
+    (saoInimigas('couve', 'tomate-cereja') && saoInimigas('milho-pipoca', 'tomate-cereja') && saoInimigas('tomate', 'milho-verde')
+      && !saoInimigas('tomate', 'tomate-cereja') && saoAmigas('tomate-cereja', 'manjericao')) || 'relações erradas');
+  teste('canteiro a ~1,2 m do milho-pipoca: tomate-cereja é sugerido com o aviso do vizinho', () => {
+    estado = migrar(estadoVazio({ largura: 10, comprimento: 10 })); invalidarSol();
+    const a = criarZonaRet({ c0: 5, r0: 5, c1: 9, r1: 19 }, 'canteiro');    // 1 × 3 m
+    const b = criarZonaRet({ c0: 5, r0: 26, c1: 24, r1: 35 }, 'canteiro');  // 6 quadrados (1,2 m) abaixo
+    Object.assign(b, { plantas: ['milho-pipoca'], qtd: { 'milho-pipoca': 10 }, plantio: { 'milho-pipoca': 10 } });
+    invalidarSol();
+    const viz = vizinhasDeZonas()[a.id];
+    const r = sugestoesPara(a, 'tomate', { mes: 10 }).find(x => x.p.id === 'tomate-cereja');
+    const aviso = r && r.etiquetas.some(t => t.tipo === 'perto');
+    return (!!viz?.has(b.id) && aviso) || `vizinhas ${viz && [...viz]}, aviso ${aviso}`;
+  });
+
   teste('nenhum erro no console durante os testes', () => !erros.length || erros.join(' | '));
 
   const falhas = resultados.filter(r => !r.ok);

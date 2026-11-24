@@ -367,7 +367,7 @@ function desenharEm(g, W, H, escala, v, interativo) {
   const destaque = new Path2D();
   const vizinho = new Path2D();
   const modoMapa = interativo && modo === 'mapa';
-  // Áreas vizinhas da selecionada (até 1 m) ganham contorno tracejado
+  // Áreas vizinhas da selecionada (até DISTANCIA_VIZINHA_M) ganham contorno tracejado
   const vizAtiva = modoMapa && zonaAtiva && TIPOS_PLANTAVEIS.includes(zonaPorId(zonaAtiva)?.tipo)
     ? (analiseHorta().viz[zonaAtiva] || new Set()) : new Set();
   for (let r = r0; r < r1; r++) {

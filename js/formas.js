@@ -60,6 +60,11 @@ const ehRetangulo = k => k && k.n === (k.c1 - k.c0 + 1) * (k.r1 - k.r0 + 1);
 const ehCaminho = v => v > 0 && zonaPorId(v)?.tipo === 'caminho';
 // Um canteiro pode ocupar quadrados vazios, de caminho, ou dele mesmo
 const podeOcupar = (i, id) => { const v = estado.celulas[i]; return v === 0 || v === id || ehCaminho(v); };
+// Parte da caixa que fica dentro do terreno (null se ficar toda fora)
+function caixaNoTerreno(k) {
+  const c0 = Math.max(0, k.c0), r0 = Math.max(0, k.r0), c1 = Math.min(estado.cols - 1, k.c1), r1 = Math.min(estado.rows - 1, k.r1);
+  return c0 <= c1 && r0 <= r1 ? { c0, r0, c1, r1 } : null;
+}
 const celsDoRet = k => {
   const res = [];
   for (let r = k.r0; r <= k.r1; r++) for (let c = k.c0; c <= k.c1; c++) res.push(r * estado.cols + c);
@@ -189,6 +194,7 @@ function terminarTracado() {
   const nz = criarZonaCelulas(cels, tipoNovaForma);
   if (!nz) { avisar(cels.length ? 'Não dá para desenhar por cima de outra área (só por cima de caminho ou do vazio).' : 'A área ficou pequena demais.'); return; }
   tracado = null;
+  limparSelecaoExtra();   // a área nova fica sozinha na seleção (não junto com o que estava selecionado)
   zonaAtiva = nz.id;
   objetoAtivo = null;
   registrar(antes);
@@ -314,7 +320,8 @@ function selecionarNoDesenho(ev, p) {
   objetoAtivo = null;
   const id = celula(p.c, p.r);
   if (id > 0 && !ehCaminho(id)) { pegarZona(ev, id, p); return; }
-  ponteiro = { modo: 'marquee', ini: limitar(p), fim: limitar(p), somar: ev.ctrlKey || ev.metaKey || ev.shiftKey };
+  // a caixa usa o ponto de verdade (mesmo fora do terreno): clicar fora não pega o que está na borda, como o muro
+  ponteiro = { modo: 'marquee', ini: p, fim: p, somar: ev.ctrlKey || ev.metaKey || ev.shiftKey };
 }
 // Move várias áreas juntas (todas ou nenhuma)
 function moverGrupo(ids, dc, dr) {
@@ -342,7 +349,7 @@ function moverGrupo(ids, dc, dr) {
 
 function formaPointerMove(p) {
   const pt = ponteiro;
-  if (pt.modo === 'marquee') { pt.fim = limitar(p); return true; }
+  if (pt.modo === 'marquee') { pt.fim = p; return true; }
   if (pt.modo === 'moverZona' && pt.podeMover) { pt.dc = p.c - pt.ini.c; pt.dr = p.r - pt.ini.r; return true; }
   if (pt.modo === 'redim') { pt.k = retRedimensionado(pt.k0, pt.alca, p); return true; }
   if (pt.modo === 'novaForma') { pt.fim = limitar(p); return true; }
@@ -361,9 +368,9 @@ function formaSoltar(pt) {
   if (pt.modo === 'pontoLinha') { pontoNoTracado(pt.p); return true; }
   const z = zonaPorId(zonaAtiva);
   if (pt.modo === 'marquee') {
-    const k = caixa(pt.ini, pt.fim);
+    const k = caixaNoTerreno(caixa(pt.ini, pt.fim));
     const ids = [];
-    for (const i of celsDoRet(k)) { const v = estado.celulas[i]; if (v > 0 && !ehCaminho(v) && !ids.includes(v)) ids.push(v); }
+    for (const i of k ? celsDoRet(k) : []) { const v = estado.celulas[i]; if (v > 0 && !ehCaminho(v) && !ids.includes(v)) ids.push(v); }
     if (!pt.somar) { limparSelecaoExtra(); zonaAtiva = null; }
     for (const id of ids) { if (!zonaAtiva) zonaAtiva = id; else if (id !== zonaAtiva) zonasExtras.add(id); }
     atualizarPaineis();
@@ -402,6 +409,7 @@ function formaSoltar(pt) {
     const k = caixa(pt.ini, pt.fim);
     const nz = criarZonaCelulas(pt.forma === 'circulo' ? celsDoCirculo(k) : celsDoRet(k), tipoNovaForma);
     if (!nz) { avisar('Não dá para desenhar por cima de outra área (só por cima de caminho ou do vazio).'); return true; }
+    limparSelecaoExtra();
     zonaAtiva = nz.id;
     objetoAtivo = null;
     registrar(pt.antes);
@@ -552,6 +560,7 @@ function duplicarZona() {
   const nz = { ...JSON.parse(JSON.stringify(z)), id, nome: proximoNome(z.tipo), plantas: [], qtd: {}, plantio: {}, pos: {}, origem: {} };
   estado.zonas.push(nz);
   for (const [dc, dr] of formato) estado.celulas[(lugar[1] + dr) * cols + lugar[0] + dc] = id;
+  limparSelecaoExtra();
   zonaAtiva = id;
   mudou();
   avisar(`“${nz.nome}” criado — cópia de ${z.nome} (sem as plantas).`);
@@ -607,9 +616,10 @@ function preencherCaminhos() {
   registrar();
   let cam = estado.zonas.find(z => z.tipo === 'caminho');
   if (!cam) {
-    cam = { id: estado.proximoId++, nome: 'Caminho', tipo: 'caminho', cor: TIPOS.caminho.cor, plantas: [], altura: 0, grupo: null, qtd: {}, plantio: {}, pos: {}, origem: {} };
+    cam = { id: estado.proximoId++, nome: 'Caminho', tipo: 'caminho', cor: TIPOS.caminho.cor, plantas: [], altura: 0, grupo: grupoAutoDe('caminho'), qtd: {}, plantio: {}, pos: {}, origem: {} };
     estado.zonas.push(cam);
   }
+  if (cam.grupo == null) cam.grupo = grupoAutoDe('caminho');   // caminho feito antes, ainda em "Sem grupo"
   estado.celulas = estado.celulas.map(v => (v === 0 ? cam.id : v));
   mudou();
   avisar(`👣 ${fmt(vazios * (estado.tamanhoCelulaCm / 100) ** 2, 1)} m² viraram “${cam.nome}”. Ctrl+Z desfaz.`);

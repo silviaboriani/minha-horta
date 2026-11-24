@@ -86,6 +86,7 @@ const FAMILIAS_ROTACAO = ['Brássicas', 'Solanáceas', 'Cucurbitáceas', 'Aliác
 function P(id, nome, cat, emoji, d) {
   const p = {
     id, nome, cat, emoji, familia: FAMILIA_DE[id] || 'Outras',
+    base: id,   // variedades (…Base copiada) herdam o id da cultura: tomate-cereja → tomate, milho-pipoca → milho-verde
     sol: 6, esp: [30, 30], forma: 'direto', sem: [], tr: [], col: [60, 90],
     geada: false, tutor: false, perene: false,
     amigas: [], inimigas: [], alias: [], dica: '',
@@ -1109,13 +1110,17 @@ function idsDaZona(z) {
 }
 const ehBase = id => PLANTAS_BASE.some(p => p.id === id);
 
+// Uma variedade vale como a cultura dela nas listas de amigas e inimigas
+// (a lista do tomate diz "milho-verde": vale também para o milho-pipoca)
+const nomesNaLista = p => [p.id, p.base || p.id];
+const citaAlguma = (lista, p) => nomesNaLista(p).some(id => lista.includes(id));
 function saoInimigas(a, b) {
   const pa = plantaPorId(a), pb = plantaPorId(b);
-  return !!(pa && pb && (pa.inimigas.includes(b) || pb.inimigas.includes(a)));
+  return !!(pa && pb && (citaAlguma(pa.inimigas, pb) || citaAlguma(pb.inimigas, pa)));
 }
 function saoAmigas(a, b) {
   const pa = plantaPorId(a), pb = plantaPorId(b);
-  return !!(pa && pb && !saoInimigas(a, b) && (pa.amigas.includes(b) || pb.amigas.includes(a)));
+  return !!(pa && pb && !saoInimigas(a, b) && (citaAlguma(pa.amigas, pb) || citaAlguma(pb.amigas, pa)));
 }
 // Relações nos dois sentidos (se A diz que combina com B, B também combina com A)
 function relacoes(id) {

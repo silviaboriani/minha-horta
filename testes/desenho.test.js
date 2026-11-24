@@ -260,6 +260,58 @@
     return (visivel && ferramenta === 'selecionar' && objetoAtivo === null && !!zonaAtiva) || `ferramenta ${ferramenta}, objeto ${objetoAtivo}`;
   });
 
+  // ---- erros da revisão geral (24/11)
+  teste('"Preencher caminhos" põe o caminho no grupo Caminhos (não em "Sem grupo")', () => {
+    vazio(); categoria('canteiro'); jeito('ret'); arrastar(10.5, 10.5, 15.5, 15.5);
+    preencherCaminhos();
+    const cam = zonasPorTipo('caminho')[0];
+    return (!!cam && cam.grupo !== null && cam.grupo === grupoAutoDe('caminho')) || `grupo ${cam?.grupo}`;
+  });
+  teste('clicar fora do terreno com Selecionar não seleciona o muro da borda', () => {
+    vazio(); categoria('muro'); jeito('ret'); arrastar(0.5, 0.5, 49.5, 1.5);
+    document.querySelector('#ferramentas [data-f="selecionar"]').click();
+    // cada clique fora (à esquerda, em cima, à direita da borda do muro) é conferido sozinho
+    const pegou = [[-4, 1], [20, -4], [55, 1]].filter(([c, r]) => { zonaAtiva = null; limparSelecaoExtra(); clicar(c, r); return zonaAtiva !== null; });
+    return !pegou.length || `selecionou o muro clicando em ${JSON.stringify(pegou)}`;
+  });
+  teste('arrastar de fora do terreno até um canteiro ainda seleciona o canteiro', () => {
+    vazio(); categoria('canteiro'); jeito('ret'); arrastar(10.5, 10.5, 15.5, 15.5);
+    const id = zonaAtiva;
+    document.querySelector('#ferramentas [data-f="selecionar"]').click();
+    zonaAtiva = null; arrastar(-4, -4, 12, 12);
+    return zonaAtiva === id || `selecionou ${zonaAtiva}`;
+  });
+  teste('área nova (linha ou retângulo) fica sozinha na seleção, sem as que já estavam selecionadas', () => {
+    vazio(); categoria('canteiro'); jeito('ret');
+    arrastar(10.5, 10.5, 15.5, 15.5); const a = zonaAtiva;
+    arrastar(20.5, 10.5, 25.5, 15.5); const b = zonaAtiva;
+    zonaAtiva = a; zonasExtras.add(b);
+    categoria('muro'); jeito('linha'); clicar(2, 40); clicar(40, 40); tecla('Enter');
+    const linhaOk = zonaPorId(zonaAtiva)?.tipo === 'muro' && !zonasExtras.size;
+    zonaAtiva = a; zonasExtras.add(b);
+    categoria('canteiro'); jeito('ret'); arrastar(30.5, 20.5, 35.5, 25.5);
+    const retOk = zonaAtiva !== a && zonaAtiva !== b && !zonasExtras.size;
+    return (linhaOk && retOk) || `linha ${linhaOk}, retângulo ${retOk}`;
+  });
+
+  teste('caminho feito antes (em "Sem grupo") vai para Caminhos ao preencher de novo', () => {
+    vazio(); categoria('canteiro'); jeito('ret'); arrastar(10.5, 10.5, 15.5, 15.5);
+    preencherCaminhos();
+    const cam = zonasPorTipo('caminho')[0]; cam.grupo = null;
+    categoria('canteiro'); jeito('ret'); arrastar(20.5, 20.5, 25.5, 25.5);
+    estado.celulas = estado.celulas.map(v => (v === cam.id ? 0 : v));   // abre espaço vazio de novo
+    preencherCaminhos();
+    return cam.grupo === grupoAutoDe('caminho') || `grupo ${cam.grupo}`;
+  });
+  teste('Duplicar: a cópia fica sozinha na seleção', () => {
+    vazio(); categoria('canteiro'); jeito('ret');
+    arrastar(10.5, 10.5, 15.5, 15.5); const a = zonaAtiva;
+    arrastar(20.5, 10.5, 25.5, 15.5); const b = zonaAtiva;
+    zonaAtiva = a; zonasExtras.add(b);
+    duplicarZona();
+    return (zonaAtiva !== a && zonaAtiva !== b && !zonasExtras.size) || `ativa ${zonaAtiva}, extras ${[...zonasExtras]}`;
+  });
+
   teste('nenhum erro no console durante os testes', () => !erros.length || erros.join(' | '));
   alternarDesenho(false);
 

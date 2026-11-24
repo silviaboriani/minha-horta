@@ -7,7 +7,8 @@
 
 const TIPOS_PLANTAVEIS = ['canteiro', 'outro'];
 const TIPOS_SEM_VIZINHANCA = ['muro', 'caminho', 'composteira'];
-const DISTANCIA_VIZINHA_M = 1;   // áreas a até 1 m uma da outra são "vizinhas"
+const DISTANCIA_VIZINHA_M = 1.5;   // áreas a até 1,5 m uma da outra (um caminho e um pouco) são "vizinhas"
+const DISTANCIA_PLANTAS_M = 1;     // no mesmo canteiro, plantas posicionadas a até 1 m uma da outra estão "perto"
 
 let cacheAnalise = null;
 let buscaPlanta = '';
@@ -89,11 +90,11 @@ function bordasDasZonas() {
   });
   return res;
 }
-// Dois conjuntos de quadrados estão a menos de 1 m um do outro?
+// Dois conjuntos de quadrados estão a menos de DISTANCIA_PLANTAS_M um do outro?
 function pertoCels(a, b) {
   if (!a.length || !b.length) return false;
   const cols = estado.cols;
-  const R = Math.round(DISTANCIA_VIZINHA_M * 100 / estado.tamanhoCelulaCm);
+  const R = Math.round(DISTANCIA_PLANTAS_M * 100 / estado.tamanhoCelulaCm);
   const caixa = l => {
     let c0 = Infinity, c1 = -1, r0 = Infinity, r1 = -1;
     for (const i of l) { const c = i % cols, r = (i - c) / cols; if (c < c0) c0 = c; if (c > c1) c1 = c; if (r < r0) r0 = r; if (r > r1) r1 = r; }
@@ -463,13 +464,15 @@ function htmlResumoArea(z, info, st, cl) {
   const sugerir = TIPOS_PLANO.includes(z.tipo) ? '<button class="btn-sugerir mini" data-sugerir-plano="zona" title="Sugerir plano para este canteiro">✨ Sugerir</button>' : '';
   let ocup = '';
   if (info && info.area) {
-    const pct = Math.round(info.usado / info.area * 100);
     const sit = situacaoEspaco(info.zonaId);
-    const texto = info.usado <= 0
+    // mesma conta da bolinha: planta sem quantidade ocupa o mínimo que vale a pena (não deixa o canteiro "vazio")
+    const ocupado = sit ? info.area - sit.livre : info.usado;
+    const pct = Math.round(ocupado / info.area * 100);
+    const texto = ocupado <= 1e-9
       ? `${fmt(info.area, 1)} m² · vazio`
       : info.excesso
         ? `⚠️ plantas demais: ${fmt(info.usado, 1)} m² em ${fmt(info.area, 1)} m²`
-        : `${pct}% ocupado · ${fmt(info.livre, 1)} m² livres`;
+        : `${pct}% ocupado · ${fmt(info.area - ocupado, 1)} m² livres`;
     ocup = `<div class="barra"><span style="width:${Math.min(100, pct)}%"></span></div>
       <div class="sit-linha ${sit ? sit.tipo : ''}">${sit ? sit.icone + ' ' : ''}${texto}</div>
       ${info.mesesExcesso.length && !info.excesso ? `<div class="mal-txt">⚠️ Passa do espaço em ${faixaMeses(info.mesesExcesso)}</div>` : ''}
