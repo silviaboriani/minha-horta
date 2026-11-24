@@ -36,20 +36,25 @@ Tudo no mesmo lugar, então vale fazer junto.
 Projeto Firebase `minha-horta-89936` (plano gratuito, banco em São Paulo). Regras em `firestore.rules` (publicadas).
 - [x] Criar o projeto no Firebase, login com Google, banco e regras.
 - [x] "Entrar com Google" e guardar a horta na nuvem.
-- [x] Convidar pessoas por e-mail (e tirar; sair da horta; parar de compartilhar).
+- [x] Convidar pessoas por link (vale 7 dias; e tirar; sair da horta; parar de compartilhar).
 - [x] Atualizações ao vivo, funcionando também sem internet.
-- [ ] **Testar no iPad de verdade**, pelo ícone da tela de início: o login do Google pode não abrir no app instalado (aí o app avisa para usar pelo Safari).
-- [ ] Testar com uma 2ª conta Google de verdade: convidar, abrir, mudar ao mesmo tempo, "Sair desta horta".
+- [x] Testado com uma 2ª conta Google de verdade (Chrome, dois perfis): convite por link, entrar, ver as duas pessoas. Publicado na v13.
 - [ ] Depois, se quiser: fotos do diário na nuvem (precisa do plano pago do Firebase; por enquanto ficam no aparelho).
 - Limitações conhecidas (por enquanto): quando chega mudança de outra pessoa, o "desfazer" é zerado;
   se as duas mudarem **a mesma coisa**, vale a de quem enviou por último; duas abas abertas no mesmo aparelho podem se atrapalhar.
 
-## Etapa 5 — Tutorial
+## Etapa 5 — Tablets: iPad e Android (em breve)
+- [ ] Ajustar o app para iPad e tablets Android (toque, tamanhos de tela, app instalado pelo ícone).
+- [ ] **Testar no iPad de verdade**, pelo ícone da tela de início: o login do Google pode não abrir no app instalado (aí o app avisa para usar pelo Safari).
+- [ ] Testar num tablet Android (Chrome e app instalado), incluindo o login com Google e a horta compartilhada.
+- Obs.: no navegador embutido de outros apps, o Google pode recusar adicionar outra conta; convites funcionam melhor no Chrome ou Safari.
+
+## Etapa 6 — Tutorial
 Fica por último de propósito: explica as telas, então é melhor fazer depois que o menu, o painel e as ferramentas mudarem.
 - [ ] Tutorial inicial explicando cada seção e a sequência de uso.
 - [ ] Junto: boas-vindas com um passo para escolher tipos de planta e um caminho curto ("só me mostre o app").
 
-## Etapa 6 — Pendências menores (quando sobrar tempo)
+## Etapa 7 — Pendências menores (quando sobrar tempo)
 - [ ] Adubos verdes e grãos aparecem com muitas plantas no plano.
 - [ ] Calendários do painel da direita começarem no mês atual, como o do plano.
 - [ ] Repensar "Marcar no canteiro".
