@@ -43,18 +43,55 @@ Projeto Firebase `minha-horta-89936` (plano gratuito, banco em São Paulo). Regr
 - Limitações conhecidas (por enquanto): quando chega mudança de outra pessoa, o "desfazer" é zerado;
   se as duas mudarem **a mesma coisa**, vale a de quem enviou por último; duas abas abertas no mesmo aparelho podem se atrapalhar.
 
-## Etapa 5 — Tablets: iPad e Android (em breve)
+## Etapa 5 — Desenho mais fácil
+Da revisão geral de 24/11 (lista da Silvia + a minha).
+Erros:
+- [ ] Clicar fora do terreno seleciona o muro sozinho; não deveria.
+- [ ] "Criar vários canteiros": o muro continua selecionado junto com os canteiros novos.
+- [ ] "Preencher caminhos no espaço vazio" põe o caminho em "Sem grupo"; deveria ir para Caminhos.
+Ferramentas:
+- [ ] Linha: terminar também ao encostar no ponto inicial (fecha a forma), com clique do botão direito ou com duplo clique (Enter já termina).
+- [ ] Um clique simples no vazio (sem arrastar) larga a ferramenta e volta para Selecionar.
+- [ ] Tirar a ferramenta "Preencher" (não está claro para que serve).
+- [ ] Borracha com a opção "área inteira", para apagar sem precisar pintar.
+- [ ] "Onde fica o norte" mais explícito durante o desenho.
+Muros, construções e árvores:
+- [ ] Ao terminar de desenhar um muro ou uma construção, aparece um campinho em cima dele para escrever a altura.
+- [ ] Muro: escolher o material. Sólido faz sombra; tela ou alambrado não (melhor que pôr altura 0).
+- [ ] Árvore ou construção que não faz sombra na horta: mostrar "não afeta a horta".
+Aparência:
+- [ ] Fundo quadriculado também fora do terreno (cinza, com a grade mais clara que a da horta), para mostrar que dá para desenhar ali. Ao terminar o desenho, a grade de fora some (como as árvores de fora).
+- [ ] Lista de áreas: lixeira ao lado dos m² em todos os itens, não só no selecionado.
+- [ ] Nomes dos grupos cortados ("MUROS E C…", "CONSTRUÇ…", "COMPOSTEI…").
+- [ ] Grupos vazios ocupam muito espaço (vários "Vazio: arraste para cá"): juntar numa linha só.
+- [ ] A dica de baixo cobre o fim do terreno em telas menores.
+
+## Etapa 6 — Plantas e canteiros
+Erros:
+- [ ] Canteiro com planta sem quantidade aparece "vazio" (a bolinha diz "cabe mais"): contar a quantidade sugerida, como a bolinha.
+- [ ] Vizinhas que não combinam: tomate é sugerido perto do milho. Hoje só conta como vizinha a área a até 1 m, e "não combina com milho" só vale para milho-verde, não para milho-pipoca. Deixar as inimizades valendo nos dois sentidos e rever a distância.
+Sugestões:
+- [ ] Ordem das sugestões: num canteiro pequeno as primeiras são quatro abóboras (empate vira ordem alfabética). Primeiro o que cabe bem e está na melhor época; não repetir variedades da mesma cultura no topo.
+- [ ] Em "Combinam com o que já está aqui", não mostrar a própria planta.
+Avisos e textos:
+- [ ] "Próximos passos" sempre visível, mesmo com algo selecionado.
+- [ ] Sol antes de definir o norte: deixar claro que é aproximado ("defina o norte"), com botão.
+- [ ] Aviso do norte na aba Sol e sombra: clicar nele leva direto ao desenho.
+- [ ] Busca de cidade mostra resultados repetidos ("Piraquara, Paraná" duas vezes).
+- [ ] Textos: "1 plantio(s)", "1 plantas diferentes"; "Passe o mouse sobre o mapa" nas abas sem mapa.
+
+## Etapa 7 — Tablets: iPad e Android (em breve)
 - [ ] Ajustar o app para iPad e tablets Android (toque, tamanhos de tela, app instalado pelo ícone).
 - [ ] **Testar no iPad de verdade**, pelo ícone da tela de início: o login do Google pode não abrir no app instalado (aí o app avisa para usar pelo Safari).
 - [ ] Testar num tablet Android (Chrome e app instalado), incluindo o login com Google e a horta compartilhada.
 - Obs.: no navegador embutido de outros apps, o Google pode recusar adicionar outra conta; convites funcionam melhor no Chrome ou Safari.
 
-## Etapa 6 — Tutorial
+## Etapa 8 — Tutorial
 Fica por último de propósito: explica as telas, então é melhor fazer depois que o menu, o painel e as ferramentas mudarem.
 - [ ] Tutorial inicial explicando cada seção e a sequência de uso.
 - [ ] Junto: boas-vindas com um passo para escolher tipos de planta e um caminho curto ("só me mostre o app").
 
-## Etapa 7 — Pendências menores (quando sobrar tempo)
+## Etapa 9 — Pendências menores (quando sobrar tempo)
 - [ ] Adubos verdes e grãos aparecem com muitas plantas no plano.
 - [ ] Calendários do painel da direita começarem no mês atual, como o do plano.
 - [ ] Repensar "Marcar no canteiro".
@@ -62,3 +99,4 @@ Fica por último de propósito: explica as telas, então é melhor fazer depois 
 
 ## Mais para frente
 - Versão nativa para Android (Material Design) e iPad, com teste no emulador.
+- Cópia na nuvem para quem não compartilha (backup): hoje uma horta não compartilhada só existe naquele navegador.
