@@ -60,7 +60,8 @@ async function backendFirebase() {
   const ref = id => fs.doc(db, 'hortas', id);
   return {
     aoMudarUsuario: cb => auth.onAuthStateChanged(au, u => cb(u ? { uid: u.uid, email: (u.email || '').toLowerCase(), nome: u.displayName || u.email } : null)),
-    entrar: () => auth.signInWithPopup(au, new auth.GoogleAuthProvider()),
+    // sempre mostra a escolha de conta (quem tem mais de uma conta Google escolhe qual)
+    entrar: () => { const p = new auth.GoogleAuthProvider(); p.setCustomParameters({ prompt: 'select_account' }); return auth.signInWithPopup(au, p); },
     sair: () => auth.signOut(au),
     criar: async dados => (await fs.addDoc(fs.collection(db, 'hortas'), dados)).id,
     ler: async id => { const s = await fs.getDoc(ref(id)); return s.exists() ? s.data() : null; },
