@@ -18,7 +18,6 @@ function estadoVazio({ nome = 'Minha Horta', largura = 10, comprimento = 10, loc
     local: local || { nome: '', lat: -23.55, lon: -46.63, definido: false },
     norteGraus: 0, norteDefinido: false,
     plantasEditadas: {}, minhaLista: [], grupos: [], proximoGrupoId: 1, diario: [],
-    clima: { ativo: false },
     inicio: { passos: true, semArvores: false },
     perfil: { pessoas: 2, objetivo: 'fresco' },
   };
@@ -98,19 +97,8 @@ function atualizarArquivo() {
 // Os passos, na ordem (o primeiro é a tela de boas-vindas, sem número)
 const PASSOS_BV = [
   { id: 'inicio', nome: 'Boas-vindas' }, { id: 'nome', nome: 'Nome' }, { id: 'lugar', nome: 'Lugar' },
-  { id: 'norte', nome: 'Norte' }, { id: 'tamanho', nome: 'Tamanho' }, { id: 'perfil', nome: 'Quem come' },
+  { id: 'tamanho', nome: 'Tamanho' }, { id: 'perfil', nome: 'Quem come' },
 ];
-const RUMOS = [
-  { g: 0, nome: 'Norte' }, { g: 45, nome: 'Nordeste' }, { g: 90, nome: 'Leste' }, { g: 135, nome: 'Sudeste' },
-  { g: 180, nome: 'Sul' }, { g: 225, nome: 'Sudoeste' }, { g: 270, nome: 'Oeste' }, { g: 315, nome: 'Noroeste' },
-];
-// onde o norte aparece no mapa, para cada ângulo de estado.norteGraus
-const LADO_DO_MAPA = { 0: 'em cima', 45: 'em cima, à direita', 90: 'à direita', 135: 'embaixo, à direita', 180: 'embaixo', 225: 'embaixo, à esquerda', 270: 'à esquerda', 315: 'em cima, à esquerda' };
-
-// Quem olha para o "topo" do mapa e está virado para o rumo g (graus a partir do norte, no sentido do relógio)
-// tem o norte girado (360 − g) no mapa — o mesmo ângulo de estado.norteGraus (90 = norte à direita).
-const norteDoMapa = g => (360 - g) % 360;
-
 // A busca de cidades às vezes devolve o mesmo nome duas vezes (a cidade e um bairro ou distrito): fica só o primeiro
 function semCidadesRepetidas(lista) {
   const vistas = new Set();
@@ -123,35 +111,9 @@ function semCidadesRepetidas(lista) {
 
 const novo = { passo: 0 };
 function abrirBoasVindas() {
-  Object.assign(novo, { passo: 0, nome: 'Minha Horta', largura: 8, comprimento: 10, local: null, busca: '', resultados: [], buscando: false, rumo: null, pessoas: 2, objetivo: 'fresco' });
+  Object.assign(novo, { passo: 0, nome: 'Minha Horta', largura: 8, comprimento: 10, local: null, busca: '', resultados: [], buscando: false, pessoas: 2, objetivo: 'fresco' });
   $('modalInicio').classList.remove('oculto');
   renderBoasVindas();
-}
-
-// Passo do norte: a bússola, os botões, o ajuste fino e o texto mostram a mesma escolha.
-// Atualiza só essas partes (sem redesenhar a caixa), para dar para arrastar a agulha.
-function atualizarNorteBV() {
-  const cx = $('inicioCaixa'), c = cx.querySelector('[data-bv-bussola]');
-  if (!c) return;
-  const tem = novo.rumo != null, norte = tem ? norteDoMapa(novo.rumo) : 0;
-  desenharBussolaEm(c, norte);
-  c.classList.toggle('sem-escolha', !tem);
-  cx.querySelectorAll('[data-bv="rumo"]').forEach(b => b.classList.toggle('escolhido', Number(b.dataset.g) === novo.rumo));
-  cx.querySelector('[data-bv-norte]').value = norte;
-  cx.querySelector('[data-bv-norte-txt]').textContent = tem ? `${norte}°` : '';
-  const ok = cx.querySelector('[data-bv-norte-ok]');
-  ok.classList.toggle('oculto', !tem);
-  if (tem) {
-    const rumo = RUMOS[Math.round(novo.rumo / 45) % 8];
-    ok.innerHTML = `✓ O topo do mapa fica ${novo.rumo === rumo.g ? '' : 'mais ou menos '}para o <b>${rumo.nome.toLowerCase()}</b> — no mapa, o norte vai ficar <b>${LADO_DO_MAPA[norteDoMapa(rumo.g)]}</b>.`;
-  }
-  const avancar = cx.querySelector('[data-bv="avancar"]');
-  if (avancar) avancar.disabled = !tem;
-  cx.querySelector('[data-bv="pular"]')?.classList.toggle('oculto', tem);
-}
-function escolherNorteBV(norte) {
-  novo.rumo = norteDoMapa(((Math.round(norte) % 360) + 360) % 360);
-  atualizarNorteBV();
 }
 
 function renderBoasVindas() {
@@ -159,7 +121,7 @@ function renderBoasVindas() {
   const barra = novo.passo ? `<div class="passos-barra">${PASSOS_BV.slice(1).map((p, i) =>
     `<span class="${i + 1 === novo.passo ? 'atual' : i + 1 < novo.passo ? 'feito' : ''}">${i + 1}. ${p.nome}</span>`).join('')}</div>` : '';
   // passos que pedem uma resposta (ou "Pular por enquanto")
-  const falta = (passo === 'lugar' && !novo.local) || (passo === 'norte' && novo.rumo == null);
+  const falta = passo === 'lugar' && !novo.local;
   let corpo = '';
   if (passo === 'inicio') {
     corpo = `<div class="bv-logo">🌱</div>
@@ -190,22 +152,6 @@ function renderBoasVindas() {
         <input class="bv-campo curto" data-bv-campo="lon" placeholder="longitude" value="${l ? l.lon : ''}">
       </div>
       ${l ? `<div class="bv-ok">✓ ${escapar(l.nome || 'Local definido')} (${fmt(l.lat, 2)}, ${fmt(l.lon, 2)}) — hemisfério ${l.lat < 0 ? 'sul' : 'norte'}</div>` : ''}`;
-  } else if (passo === 'norte') {
-    const sul = !novo.local || novo.local.lat < 0;
-    corpo = `<h2>Para que lado fica a horta?</h2>
-      <p class="nota">No app você vê a horta <b>de cima</b>, como num mapa. Sabendo onde fica o norte, o app calcula por onde o sol passa e onde cai a sombra.</p>
-      <ol class="bv-norte-passos">
-        <li>Escolha um lado do terreno para ficar no <b>topo do mapa</b> (por exemplo, o muro do fundo).</li>
-        <li>Fique de frente para esse lado e abra a <b>bússola</b> do celular.</li>
-        <li>Toque no lado para onde você está olhando — ou gire a agulha vermelha até o norte:</li>
-      </ol>
-      <div class="bv-norte">
-        <canvas data-bv-bussola title="Arraste para girar"></canvas>
-        <div class="bv-rumos">${RUMOS.map(x => `<button data-bv="rumo" data-g="${x.g}">${x.nome}</button>`).join('')}</div>
-      </div>
-      <label class="faixa">Ajuste fino <input type="range" data-bv-norte min="0" max="355" step="5"> <span data-bv-norte-txt></span></label>
-      <p class="nota">Sem bússola? O sol nasce do lado <b>leste</b> e, ao meio-dia, fica mais para o lado <b>${sul ? 'norte' : 'sul'}</b>. Dá para acertar depois, no desenho.</p>
-      <div class="bv-ok" data-bv-norte-ok></div>`;
   } else if (passo === 'tamanho') {
     corpo = `<h2>Qual o tamanho do terreno todo?</h2>
       <p class="bv-destaque">📐 É o <b>espaço todo</b> onde a horta vai ficar — <b>não</b> o tamanho de um canteiro.
@@ -229,7 +175,6 @@ function renderBoasVindas() {
     </div>` : '';
   $('inicioCaixa').innerHTML = barra + corpo + navegacao;
   const campo = $('inicioCaixa').querySelector('.bv-campo');
-  atualizarNorteBV();
   if (campo && passo !== 'lugar') setTimeout(() => campo.focus(), 30);
 }
 
@@ -249,7 +194,6 @@ async function buscarCidade() {
 function hortaDasRespostas(r) {
   const e = estadoVazio({ nome: r.nome.trim() || 'Minha Horta', largura: r.largura, comprimento: r.comprimento, local: r.local });
   e.perfil = { pessoas: r.pessoas, objetivo: r.objetivo };
-  if (r.rumo != null) { e.norteGraus = norteDoMapa(r.rumo); e.norteDefinido = true; }
   return e;
 }
 
@@ -269,7 +213,6 @@ function montarBoasVindas() {
     if (ev.target.matches('[data-bv-objetivo]')) { novo.objetivo = ev.target.value; renderBoasVindas(); }
   });
   caixa.addEventListener('input', ev => {
-    if (ev.target.matches('[data-bv-norte]')) { escolherNorteBV(Number(ev.target.value)); return; }
     const k = ev.target.dataset.bvCampo;
     if (!k) return;
     const v = ev.target.value;
@@ -289,17 +232,6 @@ function montarBoasVindas() {
       }
     }
   });
-  // Bússola do passo do norte: arraste para girar
-  let girandoBV = false;
-  caixa.addEventListener('pointerdown', ev => {
-    if (!ev.target.matches('[data-bv-bussola]')) return;
-    try { ev.target.setPointerCapture(ev.pointerId); } catch (_) { /* toque já terminou */ }
-    girandoBV = true; escolherNorteBV(anguloNaBussola(ev.target, ev));
-  });
-  caixa.addEventListener('pointermove', ev => { if (girandoBV && ev.target.matches('[data-bv-bussola]')) escolherNorteBV(anguloNaBussola(ev.target, ev)); });
-  const pararBV = () => { girandoBV = false; };
-  caixa.addEventListener('pointerup', pararBV);
-  caixa.addEventListener('pointercancel', pararBV);
   caixa.addEventListener('keydown', ev => {
     if (ev.key !== 'Enter' || ev.target.matches('button')) return;   // num botão, o Enter já é o clique dele
     if (ev.target.dataset.bvCampo === 'busca') buscarCidade();
@@ -322,7 +254,6 @@ function montarBoasVindas() {
     else if (a === 'voltar') { novo.passo = Math.max(0, novo.passo - 1); renderBoasVindas(); }
     else if (a === 'avancar' || a === 'pular') { novo.passo++; renderBoasVindas(); }
     else if (a === 'buscar') buscarCidade();
-    else if (a === 'rumo') { escolherNorteBV(norteDoMapa(Number(b.dataset.g))); caixa.querySelector('[data-bv="avancar"]')?.focus(); }
     else if (a === 'escolher') {
       const r = novo.resultados[Number(b.dataset.i)];
       novo.local = { nome: [r.name, r.admin1].filter(Boolean).join(', '), lat: Number(r.latitude.toFixed(3)), lon: Number(r.longitude.toFixed(3)), definido: true };
@@ -361,8 +292,8 @@ function passosIniciais() {
   const plantaveis = estado.zonas.filter(z => TIPOS_PLANTAVEIS.includes(z.tipo));
   return [
     { id: 'local', feito: estado.local.definido !== false, texto: '📍 Diga onde fica a horta', ir: 'sol' },
-    { id: 'norte', feito: estado.norteDefinido, texto: '🧭 Mostre onde fica o norte', ir: 'desenho' },
     { id: 'canteiros', feito: plantaveis.length > 0, texto: '✏️ Desenhe os canteiros', ir: 'desenho' },
+    { id: 'norte', feito: estado.norteDefinido, texto: '🧭 Mostre onde fica o norte', ir: 'desenho' },
     { id: 'sombra', feito: estado.objetos.length > 0 || estado.inicio?.semArvores, texto: '🌳 Marque árvores e construções que fazem sombra', ir: 'desenho', semArvores: true },
     { id: 'plano', feito: plantaveis.some(z => (z.plantas || []).length), texto: '🌱 Planeje os canteiros (ou use ✨ Sugerir plano)', ir: 'plano' },
     { id: 'diario', feito: estado.diario.length > 0, texto: '📔 Faça o primeiro registro no diário', ir: 'diario' },

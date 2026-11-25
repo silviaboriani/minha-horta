@@ -213,40 +213,27 @@
     ]);
     return (r.length === 2 && r[0].latitude === -25.44) || JSON.stringify(r);
   });
-  teste('norte: olhando para o leste, o norte fica à esquerda (270); para o sul, embaixo (180)', () =>
-    igual([0, 90, 180, 270, 45].map(norteDoMapa), [0, 270, 180, 90, 315]));
-  teste('boas-vindas: o passo do norte vem logo depois do lugar e antes do tamanho', () =>
-    igual(PASSOS_BV.map(p => p.id), ['inicio', 'nome', 'lugar', 'norte', 'tamanho', 'perfil']));
-  teste('boas-vindas: escolher o lado define o norte; sem escolher, só dá para pular', () => {
-    abrirBoasVindas(); novo.passo = PASSOS_BV.findIndex(p => p.id === 'norte'); renderBoasVindas();
-    const cx = $('inicioCaixa');
-    const travado = cx.querySelector('[data-bv="avancar"]').disabled && !!cx.querySelector('[data-bv="pular"]');
-    cx.querySelector('[data-bv="rumo"][data-g="90"]').click();
-    const liberou = !cx.querySelector('[data-bv="avancar"]').disabled && /à esquerda/.test(cx.textContent);
-    const com = hortaDasRespostas(novo), sem = hortaDasRespostas({ ...novo, rumo: null });
-    $('modalInicio').classList.add('oculto');
-    return (travado && liberou && com.norteDefinido && com.norteGraus === 270 && !sem.norteDefinido) ||
-      `travado ${travado}, liberou ${liberou}, com ${com.norteGraus}/${com.norteDefinido}, sem ${sem.norteDefinido}`;
+  teste('boas-vindas: nome, lugar, tamanho e quem come (o norte fica para o desenho)', () =>
+    igual(PASSOS_BV.map(p => p.id), ['inicio', 'nome', 'lugar', 'tamanho', 'perfil']));
+  teste('previsão do tempo: sempre ligada, sem botão de ativar; sem lugar definido, não aparece', () => {
+    vazio(); estado.local = { nome: 'X', lat: 10, lon: 10, definido: true };
+    buscandoClima = true;   // o teste não busca a previsão de verdade
+    const com = htmlClima();
+    estado.local.definido = false;
+    const sem = htmlClima();
+    queueMicrotask(() => { buscandoClima = false; });
+    return (/Tempo|previsão/i.test(com) && !/Ativar|Desativar/.test(com) && sem === '') || `com: ${com.slice(0, 80)} | sem: ${sem.slice(0, 40)}`;
   });
-  teste('boas-vindas: ajuste fino e agulha da bússola acertam o norte entre os 8 lados', () => {
-    abrirBoasVindas(); novo.passo = PASSOS_BV.findIndex(p => p.id === 'norte'); renderBoasVindas();
-    const cx = $('inicioCaixa'), faixa = cx.querySelector('[data-bv-norte]'), c = cx.querySelector('[data-bv-bussola]');
-    const temBussola = !!c && c.width > 0;
-    faixa.value = '265'; faixa.dispatchEvent(new Event('input', { bubbles: true }));
-    const porFaixa = hortaDasRespostas(novo).norteGraus, txt = cx.querySelector('[data-bv-norte-ok]').textContent;
-    const semBotao = !cx.querySelector('[data-bv="rumo"].escolhido') && !cx.querySelector('[data-bv="avancar"]').disabled;
-    // agulha: arrastar para a direita do centro = norte mais ou menos à direita (90°)
-    const r = c.getBoundingClientRect();
-    const ev = (tipo, x, y) => c.dispatchEvent(new PointerEvent(tipo, { bubbles: true, pointerId: 5, clientX: x, clientY: y }));
-    ev('pointerdown', r.left + r.width / 2, r.top + 10); ev('pointermove', r.left + r.width - 4, r.top + r.height / 2); ev('pointerup', r.left + r.width - 4, r.top + r.height / 2);
-    const porAgulha = hortaDasRespostas(novo).norteGraus;
-    $('modalInicio').classList.add('oculto');
-    return (temBussola && porFaixa === 265 && /mais ou menos para o leste/.test(txt) && semBotao && Math.abs(porAgulha - 90) <= 15) ||
-      `bússola ${temBussola}, faixa ${porFaixa} "${txt}", sem botão ${semBotao}, agulha ${porAgulha}`;
-  });
-  teste('primeiros passos: o norte vem antes dos canteiros', () => {
-    const ids = passosIniciais().map(p => p.id);
-    return ids.indexOf('norte') < ids.indexOf('canteiros') || ids.join(',');
+  teste('previsão do tempo: busca de novo quando o lugar muda ou passam 3 h; sem internet, espera 10 min', () => {
+    const agora = 1e12, aqui = { lat: -25.44, lon: -49.06, definido: true };
+    const prev = { quando: agora - 3600e3, lat: '-25.44', lon: '-49.06' };
+    return igual([
+      climaPrecisaBuscar(aqui, prev, agora, 0),                               // fresca, daqui
+      climaPrecisaBuscar({ ...aqui, lat: -23.5 }, prev, agora, 0),            // outro lugar
+      climaPrecisaBuscar(aqui, { ...prev, quando: agora - 4 * 3600e3 }, agora, 0),   // velha
+      climaPrecisaBuscar(aqui, null, agora, agora - 60e3),                    // falhou há 1 min
+      climaPrecisaBuscar({ ...aqui, definido: false }, null, agora, 0),       // sem lugar
+    ], [false, true, true, false, false]);
   });
 
   // ---------------------------------------------------------------- toque (iPad) e seleção

@@ -703,7 +703,7 @@ function anguloNaBussola(c, ev) {
 
 function desenharBussolaPainel() { desenharBussolaEm($('bussola'), estado.norteGraus); }
 
-// A bússola do painel (com "topo do mapa" em cima), em qualquer canvas — também nas boas-vindas
+// A bússola do painel (com "topo do mapa" em cima)
 function desenharBussolaEm(c, norteGraus) {
   const dpr = window.devicePixelRatio || 1;
   const t = 130;

@@ -1202,12 +1202,3 @@ html.toque .mes-plano { padding: 6px 8px; min-width: 40px; }
 .chip-grupo.alvo { background: var(--verde-claro); border-color: var(--verde); }
 .chip-grupo .acao { border: 0; background: none; padding: 0 3px; font-size: 13px; line-height: 1; color: var(--suave); opacity: .6; cursor: pointer; }
 .chip-grupo .acao:hover { opacity: 1; color: var(--perigo); }
-
-/* Boas-vindas: passo do norte */
-.bv-norte { display: flex; gap: 12px; align-items: center; margin: 8px 0; }
-.bv-norte canvas { cursor: grab; touch-action: none; flex: none; }
-.bv-norte canvas.sem-escolha { opacity: .45; }
-.bv-norte-passos { margin: 4px 0; padding-left: 18px; font-size: 13.5px; line-height: 1.45; }
-.bv-rumos { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; flex: 1; }
-.bv-rumos .escolhido { background: var(--verde); color: #fff; border-color: var(--verde); font-weight: 600; }
-@media (max-width: 520px) { .bv-norte { flex-direction: column; align-items: stretch; } .bv-norte canvas { align-self: center; } }

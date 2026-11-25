@@ -111,7 +111,7 @@ function migrar(e) {
   if (!Array.isArray(e.semPlano)) e.semPlano = [];                  // plantas tiradas do ✨ Sugerir plano
   if (e.local.definido === undefined) e.local.definido = true;
   if (!e.inicio) e.inicio = { passos: false, semArvores: false };   // hortas antigas: sem checklist
-  if (!e.clima || typeof e.clima !== 'object') e.clima = { ativo: false };
+  delete e.clima;   // a previsão do tempo agora fica sempre ligada
   if (!Number.isFinite(e.local.lon)) e.local.lon = -49.06;   // Piraquara   // diário: plantios, colheitas, notas…
   e.proximoGrupoId = Math.max(e.proximoGrupoId || 1, ...e.grupos.map(g => g.id + 1));
   if (!Array.isArray(e.objetos)) e.objetos = [];
@@ -1417,7 +1417,7 @@ function montarArquivo() {
       zonas: [], proximoId: 1,
       local: estado.local, norteGraus: estado.norteGraus, norteDefinido: estado.norteDefinido,
       plantasEditadas: estado.plantasEditadas, minhaLista: estado.minhaLista,
-      grupos: [], proximoGrupoId: 1, diario: estado.diario, clima: estado.clima,
+      grupos: [], proximoGrupoId: 1, diario: estado.diario,
       perfil: estado.perfil, semPlano: estado.semPlano, ...(estado.nuvemId ? { nuvemId: estado.nuvemId } : {}),
     });
     zonaAtiva = null;

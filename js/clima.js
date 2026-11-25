@@ -2,22 +2,33 @@
 
 // =====================================================================
 //  Minha Horta — Tempo: previsão de 7 dias, alertas de geada e de rega
-//  Usa a API gratuita open-meteo.com. Só é ativada se você clicar em
-//  "Ativar previsão": aí o navegador envia a localização APROXIMADA
+//  Usa a API gratuita open-meteo.com. Fica sempre ligada depois que a horta
+//  tem um lugar: o navegador envia só a localização APROXIMADA
 //  (latitude/longitude com 2 casas, ~1 km) para o open-meteo.com.
 // =====================================================================
 
 const CHAVE_CLIMA = 'horta.clima.v1';
 let previsao = null;        // { quando, dias: [{ data, min, max, chuva, prob }] }
 let buscandoClima = false;
+let tentouClimaEm = 0;      // sem internet: não tenta de novo a cada tela, só depois de 10 min
 
 function carregarClimaGuardado() {
   try { previsao = JSON.parse(localStorage.getItem(CHAVE_CLIMA)) || null; } catch (_) { previsao = null; }
 }
 
+// Precisa buscar a previsão? (pura: só olha os dados) — sem lugar definido, não busca
+function climaPrecisaBuscar(local, prev, agora, tentouEm) {
+  if (local?.definido === false) return false;
+  const lat = Number(local.lat).toFixed(2), lon = Number(local.lon).toFixed(2);
+  const daqui = prev && prev.lat === lat && prev.lon === lon;
+  if (daqui && agora - prev.quando < 3 * 3600e3) return false;   // guarda por 3 h
+  return agora - tentouEm > 10 * 60e3;
+}
+
 async function atualizarClima(forcar) {
-  if (!estado.clima?.ativo || buscandoClima) return;
-  if (!forcar && previsao && Date.now() - previsao.quando < 3 * 3600e3) return;   // guarda por 3 h
+  if (buscandoClima || estado.local?.definido === false) return;
+  if (!forcar && !climaPrecisaBuscar(estado.local, previsao, Date.now(), tentouClimaEm)) return;
+  tentouClimaEm = Date.now();
   const lat = Number(estado.local.lat).toFixed(2), lon = Number(estado.local.lon).toFixed(2);
   const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
     '&daily=temperature_2m_min,temperature_2m_max,precipitation_sum,precipitation_probability_max' +
@@ -29,13 +40,13 @@ async function atualizarClima(forcar) {
     const j = await r.json();
     const d = j.daily;
     previsao = {
-      quando: Date.now(),
+      quando: Date.now(), lat, lon,
       dias: d.time.map((t, i) => ({ data: t, min: d.temperature_2m_min[i], max: d.temperature_2m_max[i],
         chuva: d.precipitation_sum[i] || 0, prob: d.precipitation_probability_max?.[i] ?? null })),
     };
     try { localStorage.setItem(CHAVE_CLIMA, JSON.stringify(previsao)); } catch (_) { /* sem espaço */ }
   } catch (_) {
-    avisar('Não consegui buscar a previsão do tempo agora (sem internet?).');
+    if (forcar) avisar('Não consegui buscar a previsão do tempo agora (sem internet?).');
   } finally {
     buscandoClima = false;
     if (modo === 'mapa') renderCalendario();
@@ -81,12 +92,10 @@ function alertasClima() {
 }
 
 function htmlClima() {
-  if (!estado.clima?.ativo) {
-    return `<section class="sec-clima"><div class="linha-clima">🌦️ <b>Previsão do tempo</b> <button class="pequeno" data-clima="ativar">Ativar</button></div>
-      <p class="nota">Alertas de geada e de rega. Consulta o open-meteo.com com a localização aproximada da horta (~1 km).</p></section>`;
-  }
+  if (estado.local?.definido === false) return '';   // sem lugar, não há previsão (o "Primeiros passos" pede o lugar)
+  queueMicrotask(() => atualizarClima(false));        // busca se ainda não tem a previsão deste lugar
   if (!previsao) return `<section class="sec-clima"><div class="linha-clima">🌦️ <span class="nota">${buscandoClima ? 'Buscando a previsão…' : 'Sem previsão ainda.'}</span>
-    <button class="pequeno" data-clima="atualizar">↻</button> <button class="pequeno" data-clima="desativar">Desativar</button></div></section>`;
+    <button class="pequeno" data-clima="atualizar">↻</button></div></section>`;
   const hoje = hojeISO();
   const dias = previsao.dias.filter(d => d.data >= hoje).slice(0, 7);
   const icone = d => d.min <= 3 ? '❄️' : d.chuva >= 10 ? '🌧️' : d.chuva >= 1 ? '🌦️' : d.max >= 30 ? '☀️' : '⛅';
@@ -102,7 +111,8 @@ function htmlClima() {
       ${d.chuva >= 1 ? `<div class="mm">${Math.round(d.chuva)} mm</div>` : ''}
     </div>`).join('')}</div>
     <div class="acoes-clima"><span class="nota">atualizado às ${new Date(previsao.quando).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
-      <button class="pequeno" data-clima="atualizar">↻ Atualizar</button> <button class="pequeno" data-clima="desativar">Desativar</button></div>
+      <button class="pequeno" data-clima="atualizar">↻ Atualizar</button></div>
+    <p class="nota">Do open-meteo.com, com a localização aproximada da horta (~1 km).</p>
     </details>
     ${alertasClima().map(a => `<div class="alerta-clima ${a.nivel}">${escapar(a.texto)}</div>`).join('')}
   </section>`;
@@ -113,9 +123,7 @@ function montarClima() {
   document.addEventListener('click', ev => {
     const a = ev.target.closest('[data-clima]')?.dataset.clima;
     if (!a) return;
-    if (a === 'ativar') { registrar(); estado.clima = { ativo: true }; mudou(); atualizarClima(true); }
-    else if (a === 'desativar') { registrar(); estado.clima = { ativo: false }; mudou(); }
-    else if (a === 'atualizar') atualizarClima(true);
+    if (a === 'atualizar') atualizarClima(true);
   });
   atualizarClima(false);
 }
