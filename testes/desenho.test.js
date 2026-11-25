@@ -196,8 +196,8 @@
     li.click();
     return (modo === 'mapa' && editandoDesenho && objetoAtivo === 1) || 'não abriu no desenho';
   });
-  teste('primeiros passos: norte e árvores levam ao desenho', () =>
-    igual(passosIniciais().filter(p => p.id === 'norte' || p.id === 'sombra').map(p => p.ir), ['desenho', 'desenho']));
+  teste('primeiros passos: norte leva à bússola do desenho; árvores, ao desenho', () =>
+    igual(passosIniciais().filter(p => p.id === 'norte' || p.id === 'sombra').map(p => p.ir), ['norte', 'desenho']));
   teste('boas-vindas: o tamanho é do terreno todo, não de um canteiro', () => {
     abrirBoasVindas(); novo.passo = PASSOS_BV.findIndex(p => p.id === 'tamanho'); renderBoasVindas();
     const txt = $('inicioCaixa').textContent;

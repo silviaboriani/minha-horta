@@ -293,7 +293,7 @@ function passosIniciais() {
   return [
     { id: 'local', feito: estado.local.definido !== false, texto: '📍 Diga onde fica a horta', ir: 'sol' },
     { id: 'canteiros', feito: plantaveis.length > 0, texto: '✏️ Desenhe os canteiros', ir: 'desenho' },
-    { id: 'norte', feito: estado.norteDefinido, texto: '🧭 Mostre onde fica o norte', ir: 'desenho' },
+    { id: 'norte', feito: estado.norteDefinido, texto: '🧭 Mostre onde fica o norte', ir: 'norte' },
     { id: 'sombra', feito: estado.objetos.length > 0 || estado.inicio?.semArvores, texto: '🌳 Marque árvores e construções que fazem sombra', ir: 'desenho', semArvores: true },
     { id: 'plano', feito: plantaveis.some(z => (z.plantas || []).length), texto: '🌱 Planeje os canteiros (ou use ✨ Sugerir plano)', ir: 'plano' },
     { id: 'diario', feito: estado.diario.length > 0, texto: '📔 Faça o primeiro registro no diário', ir: 'diario' },
@@ -321,6 +321,15 @@ function htmlPrimeirosPassos() {
   </section>`;
 }
 
+// Uma linha com o próximo passo (quando o painel de uma área cobre a lista inteira)
+function htmlProximoPasso() {
+  if (!estado.inicio?.passos) return '';
+  const passos = passosIniciais(), proximo = passos.find(p => !p.feito);
+  if (!proximo) return '';
+  return `<div class="proximo-passo">👉 <span><b>Próximo passo</b> (${passos.filter(p => p.feito).length} de ${passos.length}): ${proximo.texto}${proximo.semArvores ? ' <button class="link" data-passo="semArvores">não tenho</button>' : ''}</span>
+    <button class="pequeno" data-passo="ir" data-ir="${proximo.ir}">Ir</button></div>`;
+}
+
 function montarPrimeirosPassos() {
   document.addEventListener('click', ev => {
     const b = ev.target.closest('[data-passo]');
@@ -340,8 +349,11 @@ function montarPrimeirosPassos() {
     if (a === 'ir') {
       const ir = b.dataset.ir;
       if (ir === 'desenho') { alternarDesenho(true); return; }
+      if (ir === 'norte') { alternarDesenho(true); irParaNorte(); return; }
       if (ir === 'plano') {
-        const z = estado.zonas.find(x => TIPOS_PLANTAVEIS.includes(x.tipo));
+        // fica no canteiro já selecionado, se der para plantar nele
+        const atual = zonaPorId(zonaAtiva);
+        const z = atual && TIPOS_PLANTAVEIS.includes(atual.tipo) ? atual : estado.zonas.find(x => TIPOS_PLANTAVEIS.includes(x.tipo));
         if (z) { zonaAtiva = z.id; atualizarPaineis(); desenhar(); avisar('Escolha plantas para este canteiro no painel à direita — ou use ✨ Sugerir plano.'); }
         return;
       }

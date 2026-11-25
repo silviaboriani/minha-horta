@@ -18,6 +18,7 @@
     catch (e) { resultados.push({ nome, ok: false, detalhe: 'erro: ' + e.message }); }
   };
   const planta = id => todasPlantas().find(p => p.id === id);
+  const igual = (a, b) => JSON.stringify(a) === JSON.stringify(b) || `esperado ${JSON.stringify(b)}, veio ${JSON.stringify(a)}`;
 
   // Canteiro 1 da horta de exemplo, só com brócolis, selecionado na aba Horta
   function abrir(pes = 3) {
@@ -180,6 +181,85 @@
     const r = sugestoesPara(a, 'tomate', { mes: 10 }).find(x => x.p.id === 'tomate-cereja');
     const aviso = r && r.etiquetas.some(t => t.tipo === 'perto');
     return (!!viz?.has(b.id) && aviso) || `vizinhas ${viz && [...viz]}, aviso ${aviso}`;
+  });
+
+  // ---------------------------------------------------------------- Etapa 6
+  teste('sugestões: a melhor variedade de cada cultura vem antes das outras variedades', () => {
+    const r = id => ({ p: planta(id) });
+    const lista = variedadesNoFim([r('abobora-moranga'), r('abobora-cabotia'), r('alface'), r('cenoura')].filter(x => x.p));
+    const nomes = lista.map(x => x.p.id);
+    return (nomes.indexOf('alface') < nomes.indexOf('abobora-cabotia') || !planta('abobora-cabotia')) || nomes.join(',');
+  });
+  teste('sugestões: planta grande num canteiro pequeno perde pontos; a pequena ganha', () => {
+    const grande = todasPlantas().find(p => areaDePe(p) >= 1), pequena = planta('cenoura');
+    return (pontosDeEspaco(1.5, grande) < 0 && pontosDeEspaco(1.5, pequena) > 0) || `grande ${pontosDeEspaco(1.5, grande)}, pequena ${pontosDeEspaco(1.5, pequena)}`;
+  });
+  teste('sugestões: num canteiro pequeno e vazio, as primeiras não são variedades repetidas', () => {
+    const z = abrir(); z.plantas = []; z.qtd = {}; invalidarSol();
+    const topo = sugestoesPara(z, '').slice(0, 8).map(r => r.p.base || r.p.id);
+    return new Set(topo).size === topo.length || topo.join(',');
+  });
+  teste('"Combinam com o que já está aqui" não mostra a própria planta nem outra variedade dela', () => {
+    const z = abrir(); z.plantas = ['tomate']; z.qtd = { tomate: 2 }; invalidarSol();
+    compTodas.add(z.id);
+    const html = htmlCompanheiras(z);
+    compTodas.delete(z.id);
+    const variedades = todasPlantas().filter(p => p.id !== 'tomate' && (p.base || p.id) === 'tomate').map(p => p.id);
+    const aparece = variedades.filter(id => html.includes(`data-add-planta="${id}"`));
+    return (variedades.length > 0 && !aparece.length) || `variedades ${variedades.length}, aparecem: ${aparece.join(',')}`;
+  });
+  teste('sugestões: variedade repetida desce, mas continua acima das que têm aviso', () => {
+    const r = (id, etiquetas = []) => ({ p: planta(id), ok: true, etiquetas });
+    const nomes = variedadesNoFim([r('abobora-moranga'), r('abobora-cabotia'), r('alface'), r('cenoura', [{ tipo: 'ruim' }])]).map(x => x.p.id);
+    return igual(nomes, ['abobora-moranga', 'alface', 'abobora-cabotia', 'cenoura']);
+  });
+  teste('próximo passo "Planeje": fica no canteiro selecionado', () => {
+    abrir(); const plantaveis = estado.zonas.filter(x => TIPOS_PLANTAVEIS.includes(x.tipo));
+    plantaveis.forEach(x => { x.plantas = []; x.qtd = {}; });
+    const z = plantaveis[plantaveis.length - 1]; zonaAtiva = z.id;   // não é o primeiro canteiro
+    Object.assign(estado, { norteDefinido: true, inicio: { passos: true, semArvores: true } });
+    renderCalendario();
+    const b = $('proximoPasso').querySelector('[data-passo="ir"][data-ir="plano"]');
+    if (!b) return 'próximo passo não é o plano: ' + $('proximoPasso').textContent.trim().slice(0, 60);
+    b.click();
+    return zonaAtiva === z.id || `foi para ${zonaPorId(zonaAtiva)?.nome}`;
+  });
+  teste('canteiro selecionado: o próximo passo continua à mostra, numa linha', () => {
+    abrir(); estado.inicio = { passos: true, semArvores: false }; estado.diario = [];
+    renderCalendario();
+    const txt = $('proximoPasso').textContent;
+    const botao = !!$('proximoPasso').querySelector('[data-passo="ir"]');
+    estado.inicio.passos = false; renderCalendario();
+    const escondido = $('proximoPasso').textContent.trim();
+    return (/Próximo passo/.test(txt) && botao && !escondido) || `"${txt.trim().slice(0, 60)}" / "${escondido}"`;
+  });
+  teste('sem o norte: o sol do canteiro diz "aproximado", e o botão leva à bússola do desenho', () => {
+    abrir(); estado.norteDefinido = false; atualizarPaineis();
+    const b = document.querySelector('#painelZona [data-ir-norte], .resumo-area [data-ir-norte]');
+    if (!b) return 'sem o botão';
+    b.click();
+    const ok = modo === 'mapa' && editandoDesenho;
+    alternarDesenho(false);
+    estado.norteDefinido = true; atualizarPaineis();
+    const some = !document.querySelector('.resumo-area [data-ir-norte]');
+    return (ok && some) || `desenho ${ok}, some com o norte ${some}`;
+  });
+  teste('aba Sol e sombra sem o norte: aviso fixo que leva à bússola', () => {
+    abrir(); estado.norteDefinido = false; zonaAtiva = null;
+    trocarModo('sol');
+    const visivel = !$('btnNorteSol').classList.contains('oculto');
+    $('btnNorteSol').click();
+    const foi = modo === 'mapa' && editandoDesenho;
+    alternarDesenho(false);
+    return (visivel && foi) || `visível ${visivel}, foi ${foi}`;
+  });
+  teste('textos: singular e plural pelo número; "passe o mouse" só nas abas com mapa', () => {
+    const palavras = [plural(1, 'plantio', 'plantios'), plural(2, 'plantio', 'plantios'), plural(0, 'mês', 'meses')];
+    trocarModo('plantas');
+    const escondido = $('stPos').offsetParent === null;
+    trocarModo('mapa');
+    const volta = $('stPos').offsetParent !== null;
+    return (igual(palavras, ['plantio', 'plantios', 'meses']) === true && escondido && volta) || `${palavras}, escondido ${escondido}, volta ${volta}`;
   });
 
   teste('nenhum erro no console durante os testes', () => !erros.length || erros.join(' | '));

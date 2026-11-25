@@ -121,7 +121,7 @@ function tabelaAno(zonas, compacta) {
         const nAtivas = ents.filter(e => e.ativos.has(m)).length;
         const pct = info && info.area ? Math.round(info.usoMes[m] / info.area * 100) : 0;
         const txt = pct ? `${pct}%` : nAtivas ? '' : '·';
-        return `<td class="${i === mesSol ? 'sel' : ''} ${pct > 100 ? 'excesso' : ''}" title="${MESES[i]}: ${nAtivas} planta(s) no canteiro${pct ? `, ${pct}% do espaço` : ''}">${txt}</td>`;
+        return `<td class="${i === mesSol ? 'sel' : ''} ${pct > 100 ? 'excesso' : ''}" title="${MESES[i]}: ${nAtivas} ${plural(nAtivas, 'planta', 'plantas')} no canteiro${pct ? `, ${pct}% do espaço` : ''}">${txt}</td>`;
       }).join('')}</tr>`;
     }
     for (const e of ents) {
@@ -276,10 +276,13 @@ function renderCalendario() {
   renderFaixaMeses();
   $('areaAno').classList.toggle('oculto', vistaCal !== 'ano');
   $('areaMapa').classList.toggle('oculto', vistaCal === 'ano');
+  $('stPos').classList.toggle('oculto', vistaCal === 'ano'); $('stZona').classList.toggle('oculto', vistaCal === 'ano');
   if (vistaCal === 'ano') renderAno();
   // Sem área selecionada: tarefas do mês. Com área: o painel da área (em app.js).
   const semZona = !zonaPorId(zonaAtiva);
   $('painelCal').classList.toggle('oculto', !semZona);
+  // Com uma área selecionada, os primeiros passos viram uma linha só, em cima do painel da área
+  $('proximoPasso').innerHTML = semZona ? '' : htmlProximoPasso();
   if (semZona) renderPainelCalendario();
 }
 

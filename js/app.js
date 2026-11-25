@@ -71,6 +71,8 @@ const areaMapa = $('areaMapa');
 
 // ---------- Utilidades ----------
 const fmt = (n, d = 2) => n.toLocaleString('pt-BR', { maximumFractionDigits: d });
+// Singular ou plural pelo número: plural(1, 'plantio', 'plantios') → 'plantio'
+const plural = (n, um, varios) => (n === 1 ? um : varios);
 const metros = n => n * estado.tamanhoCelulaCm / 100;
 const celsPorMetro = () => Math.max(1, Math.round(100 / estado.tamanhoCelulaCm));
 const idx = (c, r) => r * estado.cols + c;
@@ -904,6 +906,7 @@ function aplicarVisibilidadeModo() {
   const verAno = modo === 'mapa' && vistaCal === 'ano';
   $('areaAno').classList.toggle('oculto', !verAno);
   $('areaMapa').classList.toggle('oculto', verAno);
+  $('stPos').classList.toggle('oculto', verAno); $('stZona').classList.toggle('oculto', verAno);
 }
 
 function montarFerramentas() {
@@ -1428,9 +1431,11 @@ function montarArquivo() {
 
 // Aba Sol: "✏️ Editar no desenho" (árvores, construções e norte ficam no desenho)
 document.addEventListener('click', ev => {
-  if (!ev.target.closest('[data-ir-desenho]')) return;
-  trocarModo('mapa');
+  const norte = ev.target.closest('[data-ir-norte]');
+  if (!norte && !ev.target.closest('[data-ir-desenho]')) return;
+  if (modo !== 'mapa') { trocarModo('mapa'); ajustar(); }
   if (!editandoDesenho) alternarDesenho(true);
+  if (norte) irParaNorte();
 });
 
 // ---------- Topo ----------

@@ -136,6 +136,7 @@
 
     <aside class="painel direita">
       <!-- ======== Modo Calendário ======== -->
+      <div data-modo="mapa" id="proximoPasso"></div>
       <div data-modo="mapa" id="painelCal"></div>
 
       <!-- ======== Modo Diário ======== -->
@@ -163,6 +164,7 @@
       </section>
 
       <section data-modo="sol">
+        <button class="ir-norte oculto" id="btnNorteSol" data-ir-norte>🧭 Falta dizer onde fica o norte: as horas de sol são aproximadas. Definir agora ›</button>
         <p class="nota">🌳 Árvores, 🏠 construções e 🧭 o norte agora ficam no desenho da horta.</p>
         <button data-ir-desenho>✏️ Editar no desenho</button>
       </section>
@@ -317,8 +319,8 @@
   <div class="modal oculto" id="modalPlano"><div class="caixa" id="modalPlanoCaixa"></div></div>
 
   <footer class="status">
-    <span id="stPos">Toque ou passe o mouse sobre o mapa</span>
-    <span id="stZona"></span>
+    <span id="stPos" data-modo="mapa sol">Toque ou passe o mouse sobre o mapa</span>
+    <span id="stZona" data-modo="mapa sol"></span>
     <span class="espaco"></span>
     <span id="stNuvem" class="st-nuvem"></span>
     <span id="stSalvo" class="salvo"></span>

@@ -359,7 +359,7 @@ function renderModalPlano() {
     <div class="bloco-plano">
       <div class="bloco-topo">
         ${pr.zonas.length > 1 ? `<label class="check"><input type="checkbox" data-aplicar-zona="${i}" ${r.aplicar ? 'checked' : ''}> <b>${escapar(r.zona.nome)}</b></label>` : `<b>${escapar(r.zona.nome)}</b>`}
-        <span class="nota">${r.novas.length ? `${r.novas.length} plantio(s) novo(s)` : 'nada a acrescentar — está cheio ou nada serve'}</span>
+        <span class="nota">${r.novas.length ? `${r.novas.length} ${plural(r.novas.length, 'plantio novo', 'plantios novos')}` : 'nada a acrescentar — está cheio ou nada serve'}</span>
       </div>
       ${r.atuais.length || r.novas.length ? `<table class="gantt compacta preview">${cab}
         ${r.atuais.map(x => linhaPreview(x, false)).join('')}
@@ -370,8 +370,9 @@ function renderModalPlano() {
   const total = pr.zonas.reduce((s, r) => s + (r.aplicar ? r.novas.filter(x => x.qtd > 0).length : 0), 0);
   // resumo: plantios, plantas diferentes, meses com plantio
   const validas = pr.zonas.filter(r => r.aplicar).flatMap(r => r.novas.filter(x => x.qtd > 0));
+  const nPlantas = new Set(validas.map(x => x.id)).size, nMeses = new Set(validas.map(x => x.inicio)).size;
   const resumo = validas.length
-    ? `<b>${validas.length}</b> plantio(s) · <b>${new Set(validas.map(x => x.id)).size}</b> plantas diferentes · <b>${new Set(validas.map(x => x.inicio)).size}</b> mês(es) com plantio`
+    ? `<b>${validas.length}</b> ${plural(validas.length, 'plantio', 'plantios')} · <b>${nPlantas}</b> ${plural(nPlantas, 'planta', 'plantas diferentes')} · <b>${nMeses}</b> ${plural(nMeses, 'mês', 'meses')} com plantio`
     : 'Nenhum plantio novo.';
   const corpo = vistaPlano === 'mes' ? vistaPorMes(pr, escolhidos) : vistaPlano === 'planta' ? vistaPorPlanta(pr) : blocos;
   const abas = [['canteiro', '🥬 Canteiro'], ['mes', '📅 Mês'], ['planta', '🌱 Planta']]
@@ -407,7 +408,7 @@ function renderModalPlano() {
     ${vistaPlano !== 'canteiro' && pr.zonas.length > 1 && pr.zonas.some(r => !r.aplicar) ? '<p class="nota">Os canteiros desmarcados (na vista Canteiro) aparecem apagados e não entram no plano.</p>' : ''}
     <div class="blocos-plano vista-${vistaPlano}">${corpo || '<p class="vazio">Nada para mostrar.</p>'}</div>
     <div class="acoes-plano">
-      <button class="principal" data-plano="aplicar" ${total ? '' : 'disabled'}>✓ Aplicar ${total} plantio(s)</button>
+      <button class="principal" data-plano="aplicar" ${total ? '' : 'disabled'}>✓ Aplicar ${total} ${plural(total, 'plantio', 'plantios')}</button>
       <button data-plano="outra">↻ Outra sugestão</button>
       <button data-plano="cancelar">Cancelar</button>
     </div>`;
@@ -435,7 +436,7 @@ function aplicarPlano() {
   }
   fecharPlano();
   mudou();
-  avisar(`${n} plantio(s) adicionados. Veja a ordem em 📅 Ano — e Ctrl+Z desfaz, se quiser.`);
+  avisar(`${n} ${plural(n, 'plantio adicionado', 'plantios adicionados')}. Veja a ordem em 📅 Ano — e Ctrl+Z desfaz, se quiser.`);
 }
 
 function fecharPlano() {

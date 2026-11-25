@@ -1202,3 +1202,9 @@ html.toque .mes-plano { padding: 6px 8px; min-width: 40px; }
 .chip-grupo.alvo { background: var(--verde-claro); border-color: var(--verde); }
 .chip-grupo .acao { border: 0; background: none; padding: 0 3px; font-size: 13px; line-height: 1; color: var(--suave); opacity: .6; cursor: pointer; }
 .chip-grupo .acao:hover { opacity: 1; color: var(--perigo); }
+
+/* Primeiros passos numa linha, em cima do painel da área */
+.proximo-passo { display: flex; align-items: center; gap: 6px; background: #f4fbf2; border: 1px solid #d3f9d8; border-radius: 8px; padding: 6px 8px; margin: 0 0 8px; font-size: 12.5px; }
+.proximo-passo > span { flex: 1; }
+.sol-aproximado { display: block; width: 100%; margin: 4px 0 2px; padding: 3px 6px; border: 1px dashed #ffc078; background: #fff9f2; color: #a64a00; font-size: 12px; text-align: left; border-radius: 6px; }
+.sol-aproximado:hover { background: #fff4e6; }

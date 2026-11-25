@@ -51,7 +51,7 @@ function renderLimpar() {
       <label class="check"><input type="checkbox" data-limpar-check="perenes" ${opcoesLimpar.perenes ? 'checked' : ''}> Manter as perenes (alecrim, louro, hortelã…)</label>
     </div>
     <div class="resumo-limpar ${lista.length ? '' : 'vazio'}">${lista.length
-      ? `Vai tirar <b>${lista.length} plantio(s)</b> de <b>${canteiros} canteiro(s)</b>: ${[...new Set(lista.map(x => nomePlanta(x.entrada)))].slice(0, 12).join(', ')}${lista.length > 12 ? '…' : ''}.`
+      ? `Vai tirar <b>${lista.length} ${plural(lista.length, 'plantio', 'plantios')}</b> de <b>${canteiros} ${plural(canteiros, 'canteiro', 'canteiros')}</b>: ${[...new Set(lista.map(x => nomePlanta(x.entrada)))].slice(0, 12).join(', ')}${lista.length > 12 ? '…' : ''}.`
       : 'Nada para tirar com essas opções.'}</div>
     <div class="acoes-plano">
       <button class="perigo-cheio" data-limpar="ok" ${lista.length ? '' : 'disabled'}>🧹 Limpar ${lista.length || ''}</button>
@@ -70,7 +70,7 @@ function executarLimpar() {
   posicionando = null;
   $('modalGeral').classList.add('oculto');
   mudou();
-  avisar(`🧹 ${lista.length} plantio(s) removidos. Ctrl+Z (↶ Desfazer) traz de volta.`);
+  avisar(`🧹 ${lista.length} ${plural(lista.length, 'plantio removido', 'plantios removidos')}. Ctrl+Z (↶ Desfazer) traz de volta.`);
 }
 
 function montarLimpar() {

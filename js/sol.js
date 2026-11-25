@@ -749,6 +749,7 @@ function atualizarPaineisSol() {
   $('avisoNorte').classList.toggle('oculto', estado.norteDefinido);
   // desenhando sem o norte: chamada no painel da esquerda e o quadro do norte em destaque
   $('btnIrNorte').classList.toggle('oculto', estado.norteDefinido || !editandoDesenho);
+  $('btnNorteSol').classList.toggle('oculto', estado.norteDefinido);
   $('secNorte').classList.toggle('falta', !estado.norteDefinido);
   desenharBussolaPainel();
 
@@ -799,7 +800,4 @@ function trocarModo(m) {
   montarFerramentas();
   atualizarPaineis();
   desenhar();
-  if (m === 'sol' && !estado.norteDefinido) {
-    avisar('Falta mostrar onde fica o norte: aba Horta → ✏️ Editar desenho (painel à direita).');
-  }
 }

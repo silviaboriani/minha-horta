@@ -330,6 +330,7 @@ function sugestoesPara(z, texto, opc = {}) {
     if (cabem < 1) { ok = false; motivos.push({ nivel: 'mal', texto: livre < area ? '📏 não cabe no espaço livre' : '📏 precisa de mais espaço' }); }
     else if (cabem < minPes(p)) { ok = false; motivos.push({ nivel: 'mal', texto: `📏 só cabem ${cabem}` }); }
     else if (livre < area) motivos.push({ nivel: 'info', texto: `📏 cabem até ${cabem}` });
+    pontos += pontosDeEspaco(livre, p);
     const rotS = conflitoRotacao(z.id, p, inicio, ativos, entsAqui, null);
     if (rotS) { pontos -= 3; motivos.push({ nivel: 'atencao', texto: `🔄 ${rotS.split(' (mesma')[0]} (mesma família)` }); }
     // Evita repetir a mesma cultura em outro canteiro na mesma época
@@ -339,9 +340,29 @@ function sugestoesPara(z, texto, opc = {}) {
     return { p, ok, pontos, motivos, etiquetas, naoCabe: naoCabe(livre, p) };
   });
 
-  return (t ? res : res.filter(r => r.ok))
-    .sort((a, b) => (b.ok - a.ok) || (a.etiquetas.length - b.etiquetas.length) || (b.pontos - a.pontos) || a.p.nome.localeCompare(b.p.nome, 'pt'))
-    .slice(0, t ? 25 : 999);
+  const ordem = (t ? res : res.filter(r => r.ok))
+    .sort((a, b) => (b.ok - a.ok) || (a.etiquetas.length - b.etiquetas.length) || (b.pontos - a.pontos) || a.p.nome.localeCompare(b.p.nome, 'pt'));
+  return (t ? ordem : variedadesNoFim(ordem)).slice(0, t ? 25 : 999);
+}
+
+// Quanto do espaço livre o mínimo que vale a pena plantar ocupa: planta grande num canteiro pequeno vai para o fim
+// (ex.: abóbora num canteiro de 2 m²); o que cabe folgado ganha um ponto
+function pontosDeEspaco(livre, p) {
+  if (livre <= 0) return 0;
+  const parte = areaDePe(p) * Math.max(1, minPes(p)) / livre;
+  return parte > 0.5 ? -3 : parte > 0.25 ? -1 : parte <= 0.1 ? 1 : 0;
+}
+
+// Variedades da mesma cultura (abóbora, moranga, cabotiá…) não ocupam o topo juntas:
+// a melhor de cada cultura vem primeiro; as outras variedades descem, mas só dentro da mesma faixa
+// (as que servem e não têm aviso continuam acima das com aviso, como "não combina com…")
+function variedadesNoFim(lista) {
+  const vistas = new Set();
+  const faixa = r => (r.ok === false ? 1000 : 0) + (r.etiquetas?.length || 0);
+  return lista
+    .map((r, i) => { const base = r.p.base || r.p.id, repetida = vistas.has(base); vistas.add(base); return { r, i, repetida }; })
+    .sort((a, b) => (faixa(a.r) - faixa(b.r)) || (a.repetida - b.repetida) || (a.i - b.i))
+    .map(x => x.r);
 }
 
 // ---------------------------------------------------------------------
@@ -418,8 +439,9 @@ function htmlCompanheiras(z) {
 
   const candidatas = [];
   const evitar = new Set();
+  const culturas = new Set(ids.map(id => plantaPorId(id)?.base || id));
   for (const q of todasPlantas()) {
-    if (ids.includes(q.id)) continue;
+    if (ids.includes(q.id) || culturas.has(q.base || q.id)) continue;   // nem a própria planta, nem outra variedade dela
     const ruins = ids.filter(a => saoInimigas(q.id, a));   // conflito vale com qualquer planta da área
     if (ruins.some(a => ativos.includes(a))) { evitar.add(q.id); continue; }
     if (ruins.length) continue;
@@ -460,7 +482,10 @@ function htmlCompanheiras(z) {
 
 // Faixa curta no topo: sol do mês, quanto está ocupado e o botão ✨ Sugerir
 function htmlResumoArea(z, info, st, cl) {
-  const linhaSol = cl ? `<span title="${estado.norteDefinido ? '' : 'O norte ainda não foi definido (aba Sol e sombra): horas aproximadas'}">${cl.icone} <b>${fmt(st.media, 1)} h</b> de sol · ${cl.nome}${estado.norteDefinido ? '' : '*'}</span>` : '<span></span>';
+  const linhaSol = cl ? `<span>${cl.icone} <b>${estado.norteDefinido ? '' : '≈ '}${fmt(st.media, 1)} h</b> de sol · ${cl.nome}</span>` : '<span></span>';
+  // sem o norte, as horas de sol são um chute: avisa e leva direto à bússola
+  const semNorte = cl && !estado.norteDefinido
+    ? '<button class="sol-aproximado" data-ir-norte title="As horas de sol dependem de onde fica o norte">≈ Aproximado: falta dizer onde fica o norte — definir ›</button>' : '';
   const sugerir = TIPOS_PLANO.includes(z.tipo) ? '<button class="btn-sugerir mini" data-sugerir-plano="zona" title="Sugerir plano para este canteiro">✨ Sugerir</button>' : '';
   let ocup = '';
   if (info && info.area) {
@@ -478,7 +503,7 @@ function htmlResumoArea(z, info, st, cl) {
       ${info.mesesExcesso.length && !info.excesso ? `<div class="mal-txt">⚠️ Passa do espaço em ${faixaMeses(info.mesesExcesso)}</div>` : ''}
       ${info.semQtd > 1 && info.livre > 0 ? '<button class="pequeno" data-preencher>💡 Usar as quantidades sugeridas em todas</button>' : ''}`;
   }
-  return `<div class="resumo-area ${info && info.excesso ? 'mal' : ''}"><div class="linha1">${linhaSol}${sugerir}</div>${ocup}</div>`;
+  return `<div class="resumo-area ${info && info.excesso ? 'mal' : ''}"><div class="linha1">${linhaSol}${sugerir}</div>${semNorte}${ocup}</div>`;
 }
 
 function definirQuantidade(entrada, n) {

@@ -75,14 +75,14 @@ Erros:
 - [x] Canteiro com planta sem quantidade aparece "vazio" (a bolinha diz "cabe mais"): contar a quantidade sugerida, como a bolinha.
 - [x] Vizinhas que não combinam: tomate é sugerido perto do milho. Hoje só conta como vizinha a área a até 1 m, e "não combina com milho" só vale para milho-verde, não para milho-pipoca. Deixar as inimizades valendo nos dois sentidos e rever a distância.
 Sugestões:
-- [ ] Ordem das sugestões: num canteiro pequeno as primeiras são quatro abóboras (empate vira ordem alfabética). Primeiro o que cabe bem e está na melhor época; não repetir variedades da mesma cultura no topo.
-- [ ] Em "Combinam com o que já está aqui", não mostrar a própria planta.
+- [x] Ordem das sugestões: num canteiro pequeno as primeiras são quatro abóboras (empate vira ordem alfabética). Primeiro o que cabe bem e está na melhor época; não repetir variedades da mesma cultura no topo.
+- [x] Em "Combinam com o que já está aqui", não mostrar a própria planta.
 Avisos e textos:
-- [ ] "Próximos passos" sempre visível, mesmo com algo selecionado.
-- [ ] Sol antes de definir o norte: deixar claro que é aproximado ("defina o norte"), com botão.
-- [ ] Aviso do norte na aba Sol e sombra: clicar nele leva direto ao desenho.
+- [x] "Próximos passos" sempre visível, mesmo com algo selecionado.
+- [x] Sol antes de definir o norte: deixar claro que é aproximado ("defina o norte"), com botão.
+- [x] Aviso do norte na aba Sol e sombra: clicar nele leva direto ao desenho.
 - [x] Busca de cidade mostra resultados repetidos ("Piraquara, Paraná" duas vezes).
-- [ ] Textos: "1 plantio(s)", "1 plantas diferentes"; "Passe o mouse sobre o mapa" nas abas sem mapa.
+- [x] Textos: "1 plantio(s)", "1 plantas diferentes"; "Passe o mouse sobre o mapa" nas abas sem mapa.
 
 ## Etapa 7 — Tablets: iPad e Android (em breve)
 - [ ] Ajustar o app para iPad e tablets Android (toque, tamanhos de tela, app instalado pelo ícone).
