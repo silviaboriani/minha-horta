@@ -86,6 +86,8 @@ Avisos e textos:
 
 ## Etapa 7 — Tablets: iPad e Android (em breve)
 - [ ] Ajustar o app para iPad e tablets Android (toque, tamanhos de tela, app instalado pelo ícone).
+  - [x] Conferido no tamanho de iPad (em pé e deitado): mapa, painéis, desenho, sol, plantas e diário funcionam com toque.
+  - [x] Dicas sem teclas no tablet (Ctrl+D, Esc, Del, Alt); "dois dedos" aparece uma vez só.
 - [ ] **Testar no iPad de verdade**, pelo ícone da tela de início: o login do Google pode não abrir no app instalado (aí o app avisa para usar pelo Safari).
 - [ ] Testar num tablet Android (Chrome e app instalado), incluindo o login com Google e a horta compartilhada.
 - Obs.: no navegador embutido de outros apps, o Google pode recusar adicionar outra conta; convites funcionam melhor no Chrome ou Safari.

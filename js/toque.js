@@ -27,6 +27,8 @@ function montarToque() {
     b.classList.toggle('on', t.classList.contains('aberto'));
   }, true);
   if (TOQUE) document.documentElement.classList.add('toque');
+  const st = document.getElementById('stPos');
+  if (st && !st.textContent) st.textContent = TXT.mapaVazio;   // "Toque no mapa" ou "Passe o mouse sobre o mapa"
   let timer = null, balao = null, inicio = null, engolirClique = false;
 
   const esconder = () => { if (balao) { balao.remove(); balao = null; } };

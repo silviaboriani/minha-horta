@@ -275,11 +275,13 @@ function desfazerPontoTracado() {
 // Dica da barra de baixo para a ferramenta de categoria
 function dicaForma() {
   const nome = `<b>${escapar(TIPOS[tipoNovaForma].nome.toLowerCase())}</b>`;
+  // no tablet não há teclado: as dicas falam dos botões em vez das teclas
   const fim = TOQUE ? 'toque de novo no último ponto' : 'duplo clique, botão direito ou Enter';
+  const cancela = TOQUE ? '' : ' · Esc cancela';
   if (formaDesenho === 'linha') return linhaAberta()
-    ? `${TXT.clique} ponto a ponto para traçar o ${nome} · para terminar: ${fim} · no primeiro ponto, fecha a volta · Esc cancela.`
-    : `${TXT.clique} ponto a ponto em volta da área · no primeiro ponto, fecha · ou ${fim} · Esc cancela.`;
-  return `Arraste no vazio para desenhar um ${formaDesenho === 'circulo' ? 'círculo' : 'retângulo'} de ${nome}${tipoNovaForma === 'muro' ? ' (só a borda, um quadrado de largura)' : ''} · arraste uma área para mover${tipoNovaForma === 'muro' ? '' : ' · alças mudam o tamanho'} · Ctrl+D duplica.`;
+    ? `${TXT.clique} ponto a ponto para traçar o ${nome} · para terminar: ${fim} · no primeiro ponto, fecha a volta${cancela}.`
+    : `${TXT.clique} ponto a ponto em volta da área · no primeiro ponto, fecha · ou ${fim}${cancela}.`;
+  return `Arraste no vazio para desenhar um ${formaDesenho === 'circulo' ? 'círculo' : 'retângulo'} de ${nome}${tipoNovaForma === 'muro' ? ' (só a borda, um quadrado de largura)' : ''} · arraste uma área para mover${tipoNovaForma === 'muro' ? '' : ' · alças mudam o tamanho'}${TOQUE ? '' : ' · Ctrl+D duplica'}.`;
 }
 
 // Linha logo abaixo das ferramentas: o jeito de desenhar e, com a linha pela metade, Terminar/Cancelar

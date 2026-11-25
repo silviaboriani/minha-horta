@@ -968,7 +968,7 @@ function atualizarFerramentas() {
   // Posicionando uma planta dentro do canteiro
   if (modo === 'mapa' && typeof posicionando !== 'undefined' && posicionando) {
     const zp = zonaPorId(posicionando.zona);
-    $('dica').innerHTML = `📍 Pinte onde fica <b>${escapar(rotuloEntrada(zp, posicionando.entrada))}</b> · Alt + arrastar apaga · Esc termina`;
+    $('dica').innerHTML = `📍 Pinte onde fica <b>${escapar(rotuloEntrada(zp, posicionando.entrada))}</b> · ${TOQUE ? '🧽 apaga · “✓ Concluir” termina' : 'Alt + arrastar apaga · Esc termina'}`;
     $('linhaPincel').classList.remove('oculto');
     canvas.className = 'f-pincel';
   }
@@ -1042,7 +1042,7 @@ function itemZona(z, cont, lado) {
     `<span class="nome">${escapar(z.nome)}</span>` +
     (() => { const s = situacaoEspaco(z.id); return s ? `<span class="sit ${s.tipo}" title="Em ${MESES[mesSol].toLowerCase()}: ${s.nome}">${s.icone}</span>` : ''; })() +
     `<span class="area">${fmt(area, 1)} m²</span>` +
-    `<button class="lixo" title="Deletar área (Del)">🗑</button>`;
+    `<button class="lixo" title="Deletar área${TOQUE ? '' : ' (Del)'}">🗑</button>`;
   li.title = `${TIPOS[z.tipo]?.nome || ''} — arraste para outro grupo`;
   li.onclick = ev => {
     if (editandoDesenho && (ev.ctrlKey || ev.metaKey || ev.shiftKey) && !ev.target.closest('.lixo')) { alternarNaSelecao(z.id); desenhar(); return; }

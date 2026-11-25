@@ -573,6 +573,7 @@
     vazio(); categoria('muro'); jeito('linha');
     clicar(2.5, 10.5); clicar(12.5, 10.5); tecla('Enter'); fecharAlturaRapida();
     zonaPorId(zonaAtiva).altura = 2;
+    zonaAtiva = null;   // sem as alças do muro selecionado (com zoom pequeno, a alça cobre o quadrado do lado)
     clicar(13.5, 10.5); clicar(25.5, 10.5); tecla('Enter'); fecharAlturaRapida();
     const muros = estado.zonas.filter(z => z.tipo === 'muro');
     const msg = $('aviso').textContent;
@@ -599,6 +600,14 @@
     vazio(); categoria('caminho'); jeito('ret'); arrastar(2.5, 2.5, 20.5, 5.5);
     categoria('muro'); jeito('ret'); arrastar(10.5, 1.5, 10.5, 12.5); fecharAlturaRapida();
     return (estado.zonas.length === 2 && estado.zonas.some(z => z.tipo === 'muro')) || estado.zonas.map(z => z.tipo).join(',');
+  });
+
+  // ---- tablet: as dicas só falam de teclas quando há teclado (no computador continuam)
+  teste('dicas: teclas aparecem só sem toque; a barra de baixo começa com o texto certo', () => {
+    vazio(); categoria('canteiro'); jeito('ret');
+    const dica = $('dica').textContent, st = $('stPos').textContent;
+    const ok = TOQUE ? !/Ctrl|Esc|\(Del\)/.test(dica) : /Ctrl\+D duplica/.test(dica);
+    return (ok && st.trim().length > 0) || `dica "${dica}", barra "${st}"`;
   });
 
   teste('nenhum erro no console durante os testes', () => !erros.length || erros.join(' | '));
