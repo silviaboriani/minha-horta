@@ -311,12 +311,32 @@ function caixaMetros(a, b) {
   return { x: x0, y: y0, largura: arred(x1 - x0, 0.2), profundidade: arred(y1 - y0, 0.2) };
 }
 
-function desenharObjetosSol(g, v) {
+// Pinta por cima de uma árvore ou construção (ex.: vermelho quando a borracha vai apagar)
+function marcarObjeto(g, v, o, cor) {
+  const L = ladoM(), sd = d => d / L * v.zoom;
+  g.fillStyle = cor;
+  g.beginPath();
+  if (o.tipo === 'arvore') g.arc(v.ox + sd(o.x), v.oy + sd(o.y), Math.max(5, sd(o.diametro / 2)), 0, 2 * Math.PI);
+  else g.rect(v.ox + sd(o.x), v.oy + sd(o.y), sd(o.largura), sd(o.profundidade));
+  g.fill();
+}
+
+// O objeto fica todo dentro do terreno?
+function objetoDentroDoTerreno(o) {
+  const L = ladoM(), W = estado.cols * L, H = estado.rows * L;
+  const [x0, y0, x1, y1] = o.tipo === 'arvore'
+    ? [o.x - o.diametro / 2, o.y - o.diametro / 2, o.x + o.diametro / 2, o.y + o.diametro / 2]
+    : [o.x, o.y, o.x + o.largura, o.y + o.profundidade];
+  return x0 >= 0 && y0 >= 0 && x1 <= W && y1 <= H;
+}
+
+// soDentro: fora do desenho, o nome só aparece nos objetos que estão todos dentro do terreno
+function desenharObjetosSol(g, v, soDentro = false) {
   const L = ladoM();
   const sx = x => v.ox + x / L * v.zoom, sy = y => v.oy + y / L * v.zoom, sd = d => d / L * v.zoom;
 
   for (const o of estado.objetos) {
-    const ativo = o.id === objetoAtivo;
+    const ativo = o.id === objetoAtivo, comNome = !soDentro || objetoDentroDoTerreno(o);
     g.setLineDash(ativo ? [6, 4] : []);
     g.lineWidth = ativo ? 3 : 1.5;
     if (o.tipo === 'arvore') {
@@ -332,7 +352,7 @@ function desenharObjetosSol(g, v) {
       g.arc(cx, cy, Math.max(2.5, sd(0.15)), 0, 2 * Math.PI);
       g.fillStyle = '#6d4c41';
       g.fill();
-      rotuloObjeto(g, `🌳 ${o.nome} · ${fmt(o.altura, 1)} m`, cx, cy + r + 3);
+      if (comNome) rotuloObjeto(g, `🌳 ${o.nome} · ${fmt(o.altura, 1)} m`, cx, cy + r + 3);
     } else {
       const x = sx(o.x), y = sy(o.y), w = sd(o.largura), h = sd(o.profundidade);
       g.fillStyle = 'rgba(121,85,72,.5)';
@@ -340,7 +360,7 @@ function desenharObjetosSol(g, v) {
       g.strokeStyle = ativo ? '#e8590c' : '#4e342e';
       g.strokeRect(x, y, w, h);
       g.setLineDash([]);
-      rotuloObjeto(g, `🏠 ${o.nome} · ${fmt(o.altura, 1)} m`, x + w / 2, y + h + 3);
+      if (comNome) rotuloObjeto(g, `🏠 ${o.nome} · ${fmt(o.altura, 1)} m`, x + w / 2, y + h + 3);
     }
   }
   g.setLineDash([]);
@@ -443,11 +463,13 @@ function metrosDe(p) {
   return { x: (p.x - vista.ox) / vista.zoom * L, y: (p.y - vista.oy) / vista.zoom * L };
 }
 
-function objetoEm(m) {
+// soTronco: a árvore só conta perto do tronco (a borracha usa assim, para apagar quadrados embaixo da copa)
+function objetoEm(m, soTronco = false) {
   for (let i = estado.objetos.length - 1; i >= 0; i--) {
     const o = estado.objetos[i];
     if (o.tipo === 'arvore') {
-      const r = Math.max(o.diametro / 2, 5 / vista.zoom * ladoM());
+      const toque = 5 / vista.zoom * ladoM();
+      const r = soTronco ? Math.max(Math.min(o.diametro / 2, 0.3), 2 * toque) : Math.max(o.diametro / 2, toque);
       if (Math.hypot(m.x - o.x, m.y - o.y) <= r) return o;
     } else if (m.x >= o.x && m.x <= o.x + o.largura && m.y >= o.y && m.y <= o.y + o.profundidade) {
       return o;

@@ -43,7 +43,7 @@ const FERRAMENTAS = [
   { id: 'pincel', icone: '🖌️', nome: 'Pincel', tecla: 'B',
     dica: 'Arraste para pintar com <b>{zona}</b>.' },
   { id: 'borracha', icone: '🧽', nome: 'Borracha', tecla: 'E',
-    dica: `Arraste para apagar · com “Área inteira”, ${TXT.clique.toLowerCase()} numa área para apagar ela toda.` },
+    dica: `Arraste para apagar · com “Área inteira”, ${TXT.clique.toLowerCase()} numa área para apagar ela toda · ${TXT.clique.toLowerCase()} numa árvore ou construção para apagar.` },
 ];
 
 // ---------- Estado ----------
@@ -361,7 +361,14 @@ function desenharEm(g, W, H, escala, v, interativo) {
   const modoCal = interativo && modo === 'mapa';
   if (modoSol) desenharCamadaSol(g, X, Y, c0, c1, r0, r1);
   if (modoCal && !editandoDesenho) desenharCamadaCalendario(g, X, Y, c0, c1, r0, r1);
-  if (modoCal && !editandoDesenho) desenharPosicoes(g, s, X, Y);
+  if (modoCal && !editandoDesenho) {
+    // fora do desenho: árvores e construções aparecem só na parte dentro do terreno, por baixo das plantas e dos nomes
+    g.save();
+    g.beginPath(); g.rect(X(0), Y(0), X(cols) - X(0), Y(rows) - Y(0)); g.clip();
+    desenharObjetosSol(g, v, true);
+    g.restore();
+    desenharPosicoes(g, s, X, Y);
+  }
 
   // Contornos das áreas (+ destaque da área selecionada)
   const contorno = new Path2D();
@@ -440,8 +447,11 @@ function desenharEm(g, W, H, escala, v, interativo) {
     g.fillText(txt, x + 6, y - 12);
   }
 
+  // Borracha em cima de uma árvore ou construção: ela fica marcada em vermelho (um clique apaga)
+  const objBorracha = cursor && !ponteiro && ferramenta === 'borracha' && modo === 'mapa' && !espaco ? objetoEm(metrosDe(cursor), true) : null;
+  if (objBorracha) marcarObjeto(g, v, objBorracha, 'rgba(179,38,30,.45)');
   // Borracha "Área inteira": a área embaixo do mouse fica marcada em vermelho
-  if (cursor && !ponteiro && ferramenta === 'borracha' && borrachaArea && !espaco && celula(cursor.c, cursor.r) > 0) {
+  else if (cursor && !ponteiro && ferramenta === 'borracha' && borrachaArea && !espaco && celula(cursor.c, cursor.r) > 0) {
     const alvo = celula(cursor.c, cursor.r);
     g.fillStyle = 'rgba(179,38,30,.35)';
     estado.celulas.forEach((v, i) => { if (v === alvo) { const c = i % estado.cols, r = (i - c) / estado.cols; g.fillRect(X(c), Y(r), X(c + 1) - X(c), Y(r + 1) - Y(r)); } });
@@ -681,6 +691,10 @@ canvas.addEventListener('pointerdown', ev => {
     }
     case 'pincel':
     case 'borracha': {
+      // Árvores e construções ficam por cima das áreas: a borracha apaga a que estiver embaixo do clique (ao soltar);
+      // a árvore, só clicando perto do tronco — embaixo da copa, a borracha continua apagando os quadrados
+      const obj = ferramenta === 'borracha' && modo === 'mapa' ? objetoEm(metrosDe(p), true) : null;
+      if (obj) { ponteiro = { modo: 'apagarObjeto', id: obj.id }; return; }
       if (ferramenta === 'borracha' && borrachaArea) {
         // Área inteira: apaga a área clicada de uma vez (Ctrl+Z desfaz)
         const id = celula(p.c, p.r);
@@ -715,6 +729,7 @@ canvas.addEventListener('pointermove', ev => {
   cursor = p;
   atualizarStatus(p);
   if (!ponteiro) { cursorForma(p); desenhar(); return; }
+  if (ponteiro.modo === 'apagarObjeto') { if (objetoEm(metrosDe(p), true)?.id !== ponteiro.id) ponteiro.saiu = true; return; }
   if (['moverZona', 'redim', 'novaForma', 'marquee'].includes(ponteiro.modo)) { formaPointerMove(p); desenhar(); return; }
 
   if (ponteiro.modo === 'mover') {
@@ -754,6 +769,8 @@ function soltar() {
     if (pt.alterou) { registrar(pt.antes); mudou(); }
   } else if (pt.sol) {
     solSoltar(pt);
+  } else if (pt.modo === 'apagarObjeto') {
+    if (objetoPorId(pt.id) && !pt.saiu) { objetoAtivo = pt.id; excluirObjeto(); }
   } else if (pt.modo === 'apagarArea') {
     if (zonaPorId(pt.id)) { limparSelecaoExtra(); zonaAtiva = pt.id; objetoAtivo = null; deletarZona(); }
   } else if (pt.modo === 'pintar') {
@@ -773,7 +790,7 @@ function fimDoDedo(ev) {
   soltar();
 }
 canvas.addEventListener('pointerup', fimDoDedo);
-canvas.addEventListener('pointercancel', fimDoDedo);
+canvas.addEventListener('pointercancel', ev => { if (ponteiro?.modo === 'apagarObjeto') ponteiro.saiu = true; fimDoDedo(ev); });
 canvas.addEventListener('pointerleave', () => {
   if (ponteiro) return;
   cursor = null;

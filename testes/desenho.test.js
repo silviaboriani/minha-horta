@@ -199,10 +199,38 @@
   teste('primeiros passos: norte e árvores levam ao desenho', () =>
     igual(passosIniciais().filter(p => p.id === 'norte' || p.id === 'sombra').map(p => p.ir), ['desenho', 'desenho']));
   teste('boas-vindas: o tamanho é do terreno todo, não de um canteiro', () => {
-    abrirBoasVindas(); novo.passo = 3; renderBoasVindas();
+    abrirBoasVindas(); novo.passo = PASSOS_BV.findIndex(p => p.id === 'tamanho'); renderBoasVindas();
     const txt = $('inicioCaixa').textContent;
     $('modalInicio').classList.add('oculto');
     return (/terreno todo/.test(txt) && /não o tamanho de um canteiro/.test(txt)) || 'texto sem a explicação';
+  });
+
+  teste('busca de cidade: o mesmo nome no mesmo estado aparece uma vez só', () => {
+    const r = semCidadesRepetidas([
+      { name: 'Piraquara', admin1: 'Paraná', country: 'Brasil', latitude: -25.44 },
+      { name: 'Piraquara', admin1: 'Pará', country: 'Brasil' },
+      { name: 'Piraquara', admin1: 'Paraná', country: 'Brasil', latitude: -25.5 },
+    ]);
+    return (r.length === 2 && r[0].latitude === -25.44) || JSON.stringify(r);
+  });
+  teste('norte: olhando para o leste, o norte fica à esquerda (270); para o sul, embaixo (180)', () =>
+    igual([0, 90, 180, 270, 45].map(norteDoMapa), [0, 270, 180, 90, 315]));
+  teste('boas-vindas: o passo do norte vem logo depois do lugar e antes do tamanho', () =>
+    igual(PASSOS_BV.map(p => p.id), ['inicio', 'nome', 'lugar', 'norte', 'tamanho', 'perfil']));
+  teste('boas-vindas: escolher o lado define o norte; sem escolher, só dá para pular', () => {
+    abrirBoasVindas(); novo.passo = PASSOS_BV.findIndex(p => p.id === 'norte'); renderBoasVindas();
+    const cx = $('inicioCaixa');
+    const travado = cx.querySelector('[data-bv="avancar"]').disabled && !!cx.querySelector('[data-bv="pular"]');
+    cx.querySelector('[data-bv="rumo"][data-g="90"]').click();
+    const liberou = !cx.querySelector('[data-bv="avancar"]').disabled && /à esquerda/.test(cx.textContent);
+    const com = hortaDasRespostas(novo), sem = hortaDasRespostas({ ...novo, rumo: null });
+    $('modalInicio').classList.add('oculto');
+    return (travado && liberou && com.norteDefinido && com.norteGraus === 270 && !sem.norteDefinido) ||
+      `travado ${travado}, liberou ${liberou}, com ${com.norteGraus}/${com.norteDefinido}, sem ${sem.norteDefinido}`;
+  });
+  teste('primeiros passos: o norte vem antes dos canteiros', () => {
+    const ids = passosIniciais().map(p => p.id);
+    return ids.indexOf('norte') < ids.indexOf('canteiros') || ids.join(',');
   });
 
   // ---------------------------------------------------------------- toque (iPad) e seleção
@@ -462,6 +490,55 @@
     vazio(); categoria('canteiro'); jeito('ret');
     clicar(-5, 10);
     return (ferramenta === 'selecionar' && !estado.zonas.length) || `ferramenta ${ferramenta}`;
+  });
+
+  // ---- borracha em árvores e construções
+  const borracha = () => document.querySelector('#ferramentas [data-f="borracha"]').click();
+  teste('borracha: um clique numa árvore apaga a árvore (e não a área embaixo); Ctrl+Z traz de volta', () => {
+    vazio(); categoria('canteiro'); jeito('ret'); arrastar(1.5, 1.5, 15.5, 15.5);
+    document.querySelector('#ferramentas [data-f="arvore"]').click(); clicar(8, 8);
+    borracha(); clicar(8, 8);
+    const apagou = estado.objetos.length === 0 && estado.zonas.length === 1 && celula(8, 8) > 0;
+    desfazer();
+    return (apagou && estado.objetos.length === 1) || `apagou ${apagou}, objetos ${estado.objetos.length}`;
+  });
+  teste('borracha: um clique numa construção (fora do terreno) apaga a construção', () => {
+    vazio(); document.querySelector('#ferramentas [data-f="construcao"]').click(); arrastar(-10, 5, -4, 12);
+    fecharAlturaRapida();
+    borracha(); clicar(-7, 8);
+    return estado.objetos.length === 0 || 'não apagou';
+  });
+  teste('borracha: com "Área inteira", a árvore em cima da área é apagada antes da área', () => {
+    vazio(); categoria('canteiro'); jeito('ret'); arrastar(1.5, 1.5, 15.5, 15.5);
+    document.querySelector('#ferramentas [data-f="arvore"]').click(); clicar(8, 8);
+    borracha(); document.querySelector('#tamPincel [data-t="area"]').click(); clicar(8, 8);
+    document.querySelector('#tamPincel [data-t="1"]').click();
+    return (estado.objetos.length === 0 && estado.zonas.length === 1) || `objetos ${estado.objetos.length}, áreas ${estado.zonas.length}`;
+  });
+  teste('borracha: embaixo da copa (longe do tronco) apaga os quadrados, não a árvore', () => {
+    vazio(); categoria('canteiro'); jeito('ret'); arrastar(1.5, 1.5, 30.5, 30.5);
+    estado.objetos.push({ id: 950, tipo: 'arvore', nome: 'Grande', x: 3, y: 3, diametro: 4, altura: 6, folhas: 'perene' });
+    borracha(); clicar(20, 15);
+    return (estado.objetos.length === 1 && celula(20, 15) === 0) || `objetos ${estado.objetos.length}, célula ${celula(20, 15)}`;
+  });
+  teste('borracha: apertar na árvore e soltar longe dela não apaga', () => {
+    vazio(); document.querySelector('#ferramentas [data-f="arvore"]').click(); clicar(8, 8);
+    borracha();
+    ponto('pointerdown', 8, 8); ponto('pointermove', 30, 30); ponto('pointerup', 30, 30);
+    return estado.objetos.length === 1 || 'apagou';
+  });
+  teste('borracha: zoom de dois dedos em cima de uma árvore não apaga', () => {
+    vazio(); document.querySelector('#ferramentas [data-f="arvore"]').click(); clicar(8, 8);
+    borracha();
+    ponto('pointerdown', 8, 8, 'touch', 1); ponto('pointerdown', 20, 20, 'touch', 2);
+    ponto('pointerup', 20, 20, 'touch', 2); ponto('pointerup', 8, 8, 'touch', 1);
+    return estado.objetos.length === 1 || 'apagou';
+  });
+
+  teste('fora do desenho: árvore toda dentro do terreno mostra o nome; a que passa da borda, não', () => {
+    vazio();
+    const dentro = { tipo: 'arvore', x: 3, y: 3, diametro: 2 }, borda = { tipo: 'construcao', x: -1, y: 2, largura: 3, profundidade: 2 };
+    return (objetoDentroDoTerreno(dentro) && !objetoDentroDoTerreno(borda)) || 'errou';
   });
 
   teste('nenhum erro no console durante os testes', () => !erros.length || erros.join(' | '));

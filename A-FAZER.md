@@ -55,6 +55,9 @@ Ferramentas:
 - [x] Tirar a ferramenta "Preencher" (não está claro para que serve).
 - [x] Borracha com a opção "área inteira", para apagar sem precisar pintar.
 - [x] "Onde fica o norte" mais explícito durante o desenho.
+- [x] Novo passo nas boas-vindas, logo depois da cidade: "Para que lado fica a horta?" (define o norte; dá para pular).
+- [x] Borracha apaga árvores e construções (clicando no tronco ou na construção).
+- [x] Fora do desenho, árvores e construções dentro do terreno continuam aparecendo; só o que fica fora some.
 Muros, construções e árvores:
 - [x] Ao terminar de desenhar um muro ou uma construção, aparece um campinho em cima dele para escrever a altura.
 - [x] Muro desenhado com Retângulo ou Círculo fica só com a borda (um quadrado de largura). Depois, se for útil: escolher a espessura.
@@ -78,7 +81,7 @@ Avisos e textos:
 - [ ] "Próximos passos" sempre visível, mesmo com algo selecionado.
 - [ ] Sol antes de definir o norte: deixar claro que é aproximado ("defina o norte"), com botão.
 - [ ] Aviso do norte na aba Sol e sombra: clicar nele leva direto ao desenho.
-- [ ] Busca de cidade mostra resultados repetidos ("Piraquara, Paraná" duas vezes).
+- [x] Busca de cidade mostra resultados repetidos ("Piraquara, Paraná" duas vezes).
 - [ ] Textos: "1 plantio(s)", "1 plantas diferentes"; "Passe o mouse sobre o mapa" nas abas sem mapa.
 
 ## Etapa 7 — Tablets: iPad e Android (em breve)
