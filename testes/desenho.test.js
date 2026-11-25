@@ -228,6 +228,22 @@
     return (travado && liberou && com.norteDefinido && com.norteGraus === 270 && !sem.norteDefinido) ||
       `travado ${travado}, liberou ${liberou}, com ${com.norteGraus}/${com.norteDefinido}, sem ${sem.norteDefinido}`;
   });
+  teste('boas-vindas: ajuste fino e agulha da bússola acertam o norte entre os 8 lados', () => {
+    abrirBoasVindas(); novo.passo = PASSOS_BV.findIndex(p => p.id === 'norte'); renderBoasVindas();
+    const cx = $('inicioCaixa'), faixa = cx.querySelector('[data-bv-norte]'), c = cx.querySelector('[data-bv-bussola]');
+    const temBussola = !!c && c.width > 0;
+    faixa.value = '265'; faixa.dispatchEvent(new Event('input', { bubbles: true }));
+    const porFaixa = hortaDasRespostas(novo).norteGraus, txt = cx.querySelector('[data-bv-norte-ok]').textContent;
+    const semBotao = !cx.querySelector('[data-bv="rumo"].escolhido') && !cx.querySelector('[data-bv="avancar"]').disabled;
+    // agulha: arrastar para a direita do centro = norte mais ou menos à direita (90°)
+    const r = c.getBoundingClientRect();
+    const ev = (tipo, x, y) => c.dispatchEvent(new PointerEvent(tipo, { bubbles: true, pointerId: 5, clientX: x, clientY: y }));
+    ev('pointerdown', r.left + r.width / 2, r.top + 10); ev('pointermove', r.left + r.width - 4, r.top + r.height / 2); ev('pointerup', r.left + r.width - 4, r.top + r.height / 2);
+    const porAgulha = hortaDasRespostas(novo).norteGraus;
+    $('modalInicio').classList.add('oculto');
+    return (temBussola && porFaixa === 265 && /mais ou menos para o leste/.test(txt) && semBotao && Math.abs(porAgulha - 90) <= 15) ||
+      `bússola ${temBussola}, faixa ${porFaixa} "${txt}", sem botão ${semBotao}, agulha ${porAgulha}`;
+  });
   teste('primeiros passos: o norte vem antes dos canteiros', () => {
     const ids = passosIniciais().map(p => p.id);
     return ids.indexOf('norte') < ids.indexOf('canteiros') || ids.join(',');
@@ -518,7 +534,7 @@
   teste('borracha: embaixo da copa (longe do tronco) apaga os quadrados, não a árvore', () => {
     vazio(); categoria('canteiro'); jeito('ret'); arrastar(1.5, 1.5, 30.5, 30.5);
     estado.objetos.push({ id: 950, tipo: 'arvore', nome: 'Grande', x: 3, y: 3, diametro: 4, altura: 6, folhas: 'perene' });
-    borracha(); clicar(20, 15);
+    borracha(); clicar(20.5, 15.5);
     return (estado.objetos.length === 1 && celula(20, 15) === 0) || `objetos ${estado.objetos.length}, célula ${celula(20, 15)}`;
   });
   teste('borracha: apertar na árvore e soltar longe dela não apaga', () => {

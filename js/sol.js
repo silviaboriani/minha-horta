@@ -380,8 +380,8 @@ function desenharObjetosSol(g, v, soDentro = false) {
 }
 
 // Rosa dos ventos (usada no mapa e no painel)
-function desenharRosa(g, cx, cy, r, comSol) {
-  const th = estado.norteGraus * RAD;
+function desenharRosa(g, cx, cy, r, comSol, norteGraus = estado.norteGraus) {
+  const th = norteGraus * RAD;
   g.save();
   g.beginPath();
   g.arc(cx, cy, r, 0, 2 * Math.PI);
@@ -663,10 +663,7 @@ function montarSol() {
   const bus = $('bussola');
   let antes = null;
   const girar = ev => {
-    const r = bus.getBoundingClientRect();
-    const dx = ev.clientX - r.left - r.width / 2, dy = ev.clientY - r.top - r.height / 2;
-    let ang = Math.round(Math.atan2(dx, -dy) / RAD / 5) * 5;
-    ang = (ang + 360) % 360;
+    const ang = anguloNaBussola(bus, ev);
     if (ang !== estado.norteGraus || !estado.norteDefinido) {
       estado.norteGraus = ang;
       estado.norteDefinido = true;
@@ -697,8 +694,17 @@ function montarSol() {
   $('oExcluir').onclick = excluirObjeto;
 }
 
-function desenharBussolaPainel() {
-  const c = $('bussola');
+// Ângulo (de 5 em 5 graus, a partir do topo, no sentido do relógio) do mouse ou dedo em volta do centro da bússola
+function anguloNaBussola(c, ev) {
+  const r = c.getBoundingClientRect();
+  const dx = ev.clientX - r.left - r.width / 2, dy = ev.clientY - r.top - r.height / 2;
+  return (Math.round(Math.atan2(dx, -dy) / RAD / 5) * 5 + 360) % 360;
+}
+
+function desenharBussolaPainel() { desenharBussolaEm($('bussola'), estado.norteGraus); }
+
+// A bússola do painel (com "topo do mapa" em cima), em qualquer canvas — também nas boas-vindas
+function desenharBussolaEm(c, norteGraus) {
   const dpr = window.devicePixelRatio || 1;
   const t = 130;
   if (c.width !== t * dpr) { c.width = t * dpr; c.height = t * dpr; c.style.width = c.style.height = t + 'px'; }
@@ -713,7 +719,7 @@ function desenharBussolaPainel() {
   g.textAlign = 'center';
   g.textBaseline = 'middle';
   g.fillText('topo do mapa', t / 2, 8);
-  desenharRosa(g, t / 2, t / 2 + 6, 46, false);
+  desenharRosa(g, t / 2, t / 2 + 6, 46, false, norteGraus);
 }
 
 let formObjetoId = null;   // qual árvore/construção o formulário está mostrando

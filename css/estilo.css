@@ -1205,8 +1205,9 @@ html.toque .mes-plano { padding: 6px 8px; min-width: 40px; }
 
 /* Boas-vindas: passo do norte */
 .bv-norte { display: flex; gap: 12px; align-items: center; margin: 8px 0; }
-.bv-terreno { width: 110px; height: 110px; flex: none; }
-.bv-norte-passos { margin: 0; padding-left: 18px; font-size: 13.5px; line-height: 1.45; }
-.bv-rumos { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 8px 0; }
+.bv-norte canvas { cursor: grab; touch-action: none; flex: none; }
+.bv-norte canvas.sem-escolha { opacity: .45; }
+.bv-norte-passos { margin: 4px 0; padding-left: 18px; font-size: 13.5px; line-height: 1.45; }
+.bv-rumos { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; flex: 1; }
 .bv-rumos .escolhido { background: var(--verde); color: #fff; border-color: var(--verde); font-weight: 600; }
-@media (max-width: 520px) { .bv-rumos { grid-template-columns: repeat(2, 1fr); } .bv-norte { flex-direction: column; } }
+@media (max-width: 520px) { .bv-norte { flex-direction: column; align-items: stretch; } .bv-norte canvas { align-self: center; } }

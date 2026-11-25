@@ -128,15 +128,30 @@ function abrirBoasVindas() {
   renderBoasVindas();
 }
 
-// Um terreno visto de cima, com a seta do norte já girada
-function htmlTerrenoComNorte(norte) {
-  return `<svg class="bv-terreno" viewBox="0 0 120 120" aria-hidden="true">
-    <rect x="20" y="20" width="80" height="80" rx="4" fill="#e9f5db" stroke="#8aa36b" stroke-width="2"/>
-    <text x="60" y="14" text-anchor="middle" font-size="9" fill="#6b6b6b">topo da tela</text>
-    ${norte == null ? '<text x="60" y="64" text-anchor="middle" font-size="22" fill="#b5b5a8">?</text>' :
-      `<g transform="rotate(${norte} 60 60)"><path d="M60 34 L68 66 L60 60 L52 66 Z" fill="#e03131"/>
-        <text x="60" y="28" text-anchor="middle" font-size="13" font-weight="700" fill="#e03131" transform="rotate(${-norte} 60 24)">N</text></g>`}
-  </svg>`;
+// Passo do norte: a bússola, os botões, o ajuste fino e o texto mostram a mesma escolha.
+// Atualiza só essas partes (sem redesenhar a caixa), para dar para arrastar a agulha.
+function atualizarNorteBV() {
+  const cx = $('inicioCaixa'), c = cx.querySelector('[data-bv-bussola]');
+  if (!c) return;
+  const tem = novo.rumo != null, norte = tem ? norteDoMapa(novo.rumo) : 0;
+  desenharBussolaEm(c, norte);
+  c.classList.toggle('sem-escolha', !tem);
+  cx.querySelectorAll('[data-bv="rumo"]').forEach(b => b.classList.toggle('escolhido', Number(b.dataset.g) === novo.rumo));
+  cx.querySelector('[data-bv-norte]').value = norte;
+  cx.querySelector('[data-bv-norte-txt]').textContent = tem ? `${norte}°` : '';
+  const ok = cx.querySelector('[data-bv-norte-ok]');
+  ok.classList.toggle('oculto', !tem);
+  if (tem) {
+    const rumo = RUMOS[Math.round(novo.rumo / 45) % 8];
+    ok.innerHTML = `✓ O topo do mapa fica ${novo.rumo === rumo.g ? '' : 'mais ou menos '}para o <b>${rumo.nome.toLowerCase()}</b> — no mapa, o norte vai ficar <b>${LADO_DO_MAPA[norteDoMapa(rumo.g)]}</b>.`;
+  }
+  const avancar = cx.querySelector('[data-bv="avancar"]');
+  if (avancar) avancar.disabled = !tem;
+  cx.querySelector('[data-bv="pular"]')?.classList.toggle('oculto', tem);
+}
+function escolherNorteBV(norte) {
+  novo.rumo = norteDoMapa(((Math.round(norte) % 360) + 360) % 360);
+  atualizarNorteBV();
 }
 
 function renderBoasVindas() {
@@ -177,20 +192,20 @@ function renderBoasVindas() {
       ${l ? `<div class="bv-ok">✓ ${escapar(l.nome || 'Local definido')} (${fmt(l.lat, 2)}, ${fmt(l.lon, 2)}) — hemisfério ${l.lat < 0 ? 'sul' : 'norte'}</div>` : ''}`;
   } else if (passo === 'norte') {
     const sul = !novo.local || novo.local.lat < 0;
-    const r = RUMOS.find(x => x.g === novo.rumo);
     corpo = `<h2>Para que lado fica a horta?</h2>
       <p class="nota">No app você vê a horta <b>de cima</b>, como num mapa. Sabendo onde fica o norte, o app calcula por onde o sol passa e onde cai a sombra.</p>
+      <ol class="bv-norte-passos">
+        <li>Escolha um lado do terreno para ficar no <b>topo do mapa</b> (por exemplo, o muro do fundo).</li>
+        <li>Fique de frente para esse lado e abra a <b>bússola</b> do celular.</li>
+        <li>Toque no lado para onde você está olhando — ou gire a agulha vermelha até o norte:</li>
+      </ol>
       <div class="bv-norte">
-        ${htmlTerrenoComNorte(r ? norteDoMapa(r.g) : null)}
-        <ol class="bv-norte-passos">
-          <li>Escolha um lado do terreno para ficar no <b>topo da tela</b> (por exemplo, o muro do fundo).</li>
-          <li>Fique de frente para esse lado e abra a <b>bússola</b> do celular.</li>
-          <li>Toque abaixo no lado para onde você está olhando:</li>
-        </ol>
+        <canvas data-bv-bussola title="Arraste para girar"></canvas>
+        <div class="bv-rumos">${RUMOS.map(x => `<button data-bv="rumo" data-g="${x.g}">${x.nome}</button>`).join('')}</div>
       </div>
-      <div class="bv-rumos">${RUMOS.map(x => `<button data-bv="rumo" data-g="${x.g}" class="${x.g === novo.rumo ? 'escolhido' : ''}">${x.nome}</button>`).join('')}</div>
+      <label class="faixa">Ajuste fino <input type="range" data-bv-norte min="0" max="355" step="5"> <span data-bv-norte-txt></span></label>
       <p class="nota">Sem bússola? O sol nasce do lado <b>leste</b> e, ao meio-dia, fica mais para o lado <b>${sul ? 'norte' : 'sul'}</b>. Dá para acertar depois, no desenho.</p>
-      ${r ? `<div class="bv-ok">✓ O topo da tela fica para o <b>${r.nome.toLowerCase()}</b> — no mapa, o norte vai ficar <b>${LADO_DO_MAPA[norteDoMapa(r.g)]}</b>.</div>` : ''}`;
+      <div class="bv-ok" data-bv-norte-ok></div>`;
   } else if (passo === 'tamanho') {
     corpo = `<h2>Qual o tamanho do terreno todo?</h2>
       <p class="bv-destaque">📐 É o <b>espaço todo</b> onde a horta vai ficar — <b>não</b> o tamanho de um canteiro.
@@ -214,6 +229,7 @@ function renderBoasVindas() {
     </div>` : '';
   $('inicioCaixa').innerHTML = barra + corpo + navegacao;
   const campo = $('inicioCaixa').querySelector('.bv-campo');
+  atualizarNorteBV();
   if (campo && passo !== 'lugar') setTimeout(() => campo.focus(), 30);
 }
 
@@ -253,6 +269,7 @@ function montarBoasVindas() {
     if (ev.target.matches('[data-bv-objetivo]')) { novo.objetivo = ev.target.value; renderBoasVindas(); }
   });
   caixa.addEventListener('input', ev => {
+    if (ev.target.matches('[data-bv-norte]')) { escolherNorteBV(Number(ev.target.value)); return; }
     const k = ev.target.dataset.bvCampo;
     if (!k) return;
     const v = ev.target.value;
@@ -272,6 +289,17 @@ function montarBoasVindas() {
       }
     }
   });
+  // Bússola do passo do norte: arraste para girar
+  let girandoBV = false;
+  caixa.addEventListener('pointerdown', ev => {
+    if (!ev.target.matches('[data-bv-bussola]')) return;
+    try { ev.target.setPointerCapture(ev.pointerId); } catch (_) { /* toque já terminou */ }
+    girandoBV = true; escolherNorteBV(anguloNaBussola(ev.target, ev));
+  });
+  caixa.addEventListener('pointermove', ev => { if (girandoBV && ev.target.matches('[data-bv-bussola]')) escolherNorteBV(anguloNaBussola(ev.target, ev)); });
+  const pararBV = () => { girandoBV = false; };
+  caixa.addEventListener('pointerup', pararBV);
+  caixa.addEventListener('pointercancel', pararBV);
   caixa.addEventListener('keydown', ev => {
     if (ev.key !== 'Enter' || ev.target.matches('button')) return;   // num botão, o Enter já é o clique dele
     if (ev.target.dataset.bvCampo === 'busca') buscarCidade();
@@ -294,7 +322,7 @@ function montarBoasVindas() {
     else if (a === 'voltar') { novo.passo = Math.max(0, novo.passo - 1); renderBoasVindas(); }
     else if (a === 'avancar' || a === 'pular') { novo.passo++; renderBoasVindas(); }
     else if (a === 'buscar') buscarCidade();
-    else if (a === 'rumo') { novo.rumo = Number(b.dataset.g); renderBoasVindas(); caixa.querySelector('[data-bv="avancar"]')?.focus(); }
+    else if (a === 'rumo') { escolherNorteBV(norteDoMapa(Number(b.dataset.g))); caixa.querySelector('[data-bv="avancar"]')?.focus(); }
     else if (a === 'escolher') {
       const r = novo.resultados[Number(b.dataset.i)];
       novo.local = { nome: [r.name, r.admin1].filter(Boolean).join(', '), lat: Number(r.latitude.toFixed(3)), lon: Number(r.longitude.toFixed(3)), definido: true };

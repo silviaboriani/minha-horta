@@ -94,6 +94,7 @@ Avisos e textos:
 Fica por último de propósito: explica as telas, então é melhor fazer depois que o menu, o painel e as ferramentas mudarem.
 - [ ] Tutorial inicial explicando cada seção e a sequência de uso.
 - [ ] Junto: boas-vindas com um passo para escolher tipos de planta e um caminho curto ("só me mostre o app").
+- [ ] Junto: repensar os "Primeiros passos" (não está claro o que é o primeiro, "Diga onde fica a horta"); deixar na mesma ordem das boas-vindas.
 
 ## Etapa 9 — Pendências menores (quando sobrar tempo)
 - [ ] Adubos verdes e grãos aparecem com muitas plantas no plano.
