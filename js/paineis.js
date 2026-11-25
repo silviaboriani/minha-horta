@@ -6,6 +6,7 @@
 //  dando mais espaço ao mapa, às plantas ou ao diário.
 //  Tela estreita (iPad em pé): os painéis abrem POR CIMA do mapa, um de
 //  cada vez, e começam fechados. Tocar num canteiro abre o painel dele.
+//  Trocar de aba fecha os dois; mexer no mapa fecha o da esquerda.
 //  A escolha fica lembrada neste aparelho (larga e estreita separadas).
 // =====================================================================
 const CHAVE_PAINEIS = 'horta.paineis.v1';
@@ -50,6 +51,17 @@ function definirPainel(lado, fechado) {
 // Chamado ao tocar num canteiro: na tela estreita, mostra o painel com os detalhes
 function abrirPainelDetalhe() {
   if (telaEstreita.matches && paineisAtuais().dir) definirPainel('dir', false);
+}
+
+// Tela estreita: fecha os painéis que estão por cima (lados: 'esq', 'dir')
+function fecharPaineisPorCima(...lados) {
+  if (!telaEstreita.matches) return;
+  const p = paineisAtuais();
+  const abertos = lados.filter(l => !p[l]);
+  if (!abertos.length) return;
+  for (const l of abertos) p[l] = true;
+  aplicarPaineis();
+  guardarPaineis();
 }
 
 function montarPaineis() {

@@ -270,6 +270,37 @@
     return (igual(palavras, ['plantio', 'plantios', 'meses']) === true && escondido && volta) || `${palavras}, escondido ${escondido}, volta ${volta}`;
   });
 
+  // ---- tela estreita (iPad em pé): os painéis por cima fecham sozinhos
+  teste('tela estreita: tocar no mapa fecha o painel da esquerda; trocar de aba fecha os dois', () => {
+    abrir();
+    const guardar = window.guardarPaineis, antes = JSON.stringify(estadoPaineis);
+    window.guardarPaineis = () => {};   // não grava a escolha dos painéis neste navegador
+    Object.defineProperty(telaEstreita, 'matches', { configurable: true, get: () => true });
+    try {
+      estadoPaineis.estreito = { esq: false, dir: true }; aplicarPaineis();
+      const r = canvas.getBoundingClientRect();
+      canvas.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerId: 7, pointerType: 'touch', clientX: r.right - 5, clientY: r.bottom - 5 }));
+      canvas.dispatchEvent(new PointerEvent('pointercancel', { bubbles: true, pointerId: 7, pointerType: 'touch' }));
+      const esqFechou = document.body.classList.contains('fecha-esq');
+      estadoPaineis.estreito = { esq: true, dir: false }; aplicarPaineis();
+      trocarModo('plantas');
+      const dirFechou = document.body.classList.contains('fecha-dir');
+      trocarModo('mapa');
+      return (esqFechou && dirFechou) || `esquerda fechou: ${esqFechou}, direita fechou: ${dirFechou}`;
+    } finally {
+      delete telaEstreita.matches;
+      window.guardarPaineis = guardar; estadoPaineis = JSON.parse(antes); aplicarPaineis();
+    }
+  });
+  teste('tela larga: tocar no mapa não fecha painel nenhum', () => {
+    abrir();
+    const antes = JSON.stringify(estadoPaineis.largo);
+    const r = canvas.getBoundingClientRect();
+    canvas.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerId: 8, pointerType: 'mouse', clientX: r.right - 5, clientY: r.bottom - 5 }));
+    canvas.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, button: 0, pointerId: 8, pointerType: 'mouse', clientX: r.right - 5, clientY: r.bottom - 5 }));
+    return telaEstreita.matches || JSON.stringify(estadoPaineis.largo) === antes || 'mudou';
+  });
+
   teste('nenhum erro no console durante os testes', () => !erros.length || erros.join(' | '));
 
   const falhas = resultados.filter(r => !r.ok);

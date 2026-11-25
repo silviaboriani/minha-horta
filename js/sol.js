@@ -794,6 +794,7 @@ function trocarModo(m) {
   tracado = null;
   ferramentaPorModo[modo] = ferramenta;
   modo = m;
+  fecharPaineisPorCima('esq', 'dir');   // tela estreita: a aba nova aparece inteira
   ferramenta = ferramentaPorModo[m];
   aplicarVisibilidadeModo();
   document.querySelectorAll('[data-aba]').forEach(b => b.classList.toggle('ativa', b.dataset.aba === m));

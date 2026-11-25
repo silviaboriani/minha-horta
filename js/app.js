@@ -652,6 +652,7 @@ function moverGesto() {
 canvas.addEventListener('pointerdown', ev => {
   tipoPonteiro.atual = ev.pointerType;
   fecharAlturaRapida();
+  fecharPaineisPorCima('esq');   // tela estreita: ferramentas e lista saem da frente; o toque continua valendo
   try { canvas.setPointerCapture(ev.pointerId); } catch { /* ponteiro já solto */ }
   if (ev.pointerType === 'touch') {
     dedos.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
