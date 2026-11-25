@@ -312,6 +312,158 @@
     return (zonaAtiva !== a && zonaAtiva !== b && !zonasExtras.size) || `ativa ${zonaAtiva}, extras ${[...zonasExtras]}`;
   });
 
+  // ---- Etapa 5: desenho mais fácil
+  const direito = (c, r) => {
+    const rect = canvas.getBoundingClientRect();
+    canvas.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 2, pointerId: 1, pointerType: 'mouse',
+      clientX: rect.left + vista.ox + c * vista.zoom, clientY: rect.top + vista.oy + r * vista.zoom }));
+  };
+  teste('muro com o Retângulo ou o Círculo fica só com a borda (um quadrado de largura)', () => {
+    vazio(); categoria('muro'); jeito('ret'); arrastar(5.5, 5.5, 25.5, 15.5);
+    const ret = celulasDaZona(zonaAtiva).length;
+    fecharAlturaRapida();
+    jeito('circulo'); arrastar(5.5, 25.5, 25.5, 45.5);
+    const circ = celulasDaZona(zonaAtiva).length, cheio = celsDoCirculo({ c0: 5, r0: 25, c1: 25, r1: 45 }).length;
+    return (ret === 2 * 21 + 2 * 9 && circ < cheio / 2) || `retângulo ${ret}, círculo ${circ} de ${cheio}`;
+  });
+  teste('canteiro com o Retângulo continua cheio', () => {
+    vazio(); categoria('canteiro'); jeito('ret'); arrastar(5.5, 5.5, 14.5, 14.5);
+    return celulasDaZona(zonaAtiva).length === 100 || celulasDaZona(zonaAtiva).length;
+  });
+  teste('Linha do muro: clicar no primeiro ponto fecha a volta e termina', () => {
+    vazio(); categoria('muro'); jeito('linha');
+    clicar(5.5, 5.5); clicar(20.5, 5.5); clicar(20.5, 20.5); clicar(5.6, 5.4);
+    const z = zonaPorId(zonaAtiva);
+    // fechar a volta liga o último ponto ao primeiro (aqui, a diagonal que passa por 12, 12)
+    return (!tracado && z?.tipo === 'muro' && celula(12, 12) === z.id) || `linha aberta ${!!tracado}, ${z?.tipo}, diagonal ${celula(12, 12)}`;
+  });
+  teste('Linha: o botão direito termina (sem mover o mapa)', () => {
+    vazio(); categoria('canteiro'); jeito('linha');
+    clicar(5, 5); clicar(15, 5); clicar(15, 15);
+    const ox = vista.ox; direito(30, 30); ponto('pointerup', 30, 30);
+    return (!tracado && zonaPorId(zonaAtiva)?.tipo === 'canteiro' && vista.ox === ox && ponteiro === null) || `linha ${!!tracado}, ponteiro ${ponteiro?.modo}`;
+  });
+  teste('clique sem arrastar no vazio com uma categoria: volta para Selecionar e não cria nada', () => {
+    vazio(); categoria('canteiro'); jeito('ret');
+    clicar(10.5, 10.5);
+    return (ferramenta === 'selecionar' && estado.zonas.length === 0 && zonaAtiva === null) || `ferramenta ${ferramenta}, áreas ${estado.zonas.length}`;
+  });
+  teste('a ferramenta Preencher não existe mais', () =>
+    (!FERRAMENTAS.some(x => x.id === 'balde') && !document.querySelector('#ferramentas [data-f="balde"]')) || 'ainda tem o balde');
+  teste('Borracha "Área inteira": um clique apaga a área toda; Ctrl+Z traz de volta', () => {
+    vazio(); categoria('canteiro'); jeito('ret'); arrastar(10.5, 10.5, 15.5, 15.5);
+    document.querySelector('#ferramentas [data-f="borracha"]').click();
+    const botao = document.querySelector('#tamPincel [data-t="area"]');
+    if (!botao || botao.classList.contains('oculto')) return 'sem o botão Área inteira';
+    botao.click(); clicar(12, 12);
+    const apagou = estado.zonas.length === 0 && !estado.celulas.some(v => v > 0);
+    desfazer();
+    const voltou = estado.zonas.length === 1;
+    document.querySelector('#tamPincel [data-t="1"]').click();
+    return (apagou && voltou && !borrachaArea) || `apagou ${apagou}, voltou ${voltou}`;
+  });
+  teste('muro novo: aparece o campinho da altura; Enter grava e Ctrl+Z desfaz', () => {
+    vazio(); categoria('muro'); jeito('ret'); arrastar(5.5, 5.5, 25.5, 15.5);
+    const box = $('alturaRapida'), z = zonaPorId(zonaAtiva);
+    if (box.classList.contains('oculto')) return 'campinho não apareceu';
+    const inp = box.querySelector('input'); inp.value = '2,4';
+    inp.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    const gravou = z.altura === 2.4 && box.classList.contains('oculto');
+    desfazer();
+    return (gravou && zonaPorId(z.id).altura === 1.5) || `altura ${z.altura}, depois ${zonaPorId(z.id)?.altura}`;
+  });
+  teste('construção nova: também abre o campinho da altura', () => {
+    vazio(); document.querySelector('#ferramentas [data-f="construcao"]').click(); arrastar(-10, 5, -4, 12);
+    const aberto = !$('alturaRapida').classList.contains('oculto');
+    fecharAlturaRapida();
+    return (aberto && estado.objetos.length === 1) || `aberto ${aberto}, objetos ${estado.objetos.length}`;
+  });
+  teste('muro de tela não faz sombra; sólido faz', () => {
+    vazio(); categoria('muro'); jeito('linha'); clicar(0.5, 10.5); clicar(49.5, 10.5); tecla('Enter'); fecharAlturaRapida();
+    const z = zonaPorId(zonaAtiva); z.altura = 2.5;
+    estado.local.lat = -25.4; estado.norteGraus = 0;
+    const media = () => { invalidarSol(); const s = calcularSol(5); let soma = 0; for (let c = 0; c < 50; c++) for (let r = 11; r < 20; r++) soma += s.horas[r * 50 + c]; return soma; };
+    const solido = media(); z.material = 'tela'; const tela = media();
+    return (tela > solido && !fazSombra(z)) || `sólido ${solido}, tela ${tela}`;
+  });
+  teste('árvore longe dos canteiros: "não afeta a horta"; perto: faz sombra; sem canteiros: não dá para saber', () => {
+    vazio(); estado.norteDefinido = true;
+    estado.objetos.push({ id: 900, tipo: 'arvore', nome: 'Longe', x: -40, y: -40, diametro: 2, altura: 3, folhas: 'perene' });
+    invalidarSol();
+    const semCanteiro = objetoSombreiaHorta(estado.objetos[0]);
+    categoria('canteiro'); jeito('ret'); arrastar(20.5, 20.5, 30.5, 30.5);
+    estado.objetos.push({ id: 901, tipo: 'arvore', nome: 'Perto', x: 4, y: 3.5, diametro: 4, altura: 8, folhas: 'perene' });
+    invalidarSol();
+    const [longe, perto] = estado.objetos.map(objetoSombreiaHorta);
+    atualizarPaineis();
+    const naLista = [...document.querySelectorAll('#listaZonas .item-objeto')].some(li => /Longe/.test(li.textContent) && li.querySelector('.nao-afeta'));
+    return (semCanteiro === null && longe === false && perto === true && naLista) || `sem ${semCanteiro}, longe ${longe}, perto ${perto}, lista ${naLista}`;
+  });
+  teste('lista: grupos vazios numa linha só ("Vazios"), sem um cabeçalho para cada', () => {
+    vazio(); categoria('canteiro'); jeito('ret'); arrastar(10.5, 10.5, 15.5, 15.5);
+    atualizarPaineis();
+    const cab = [...document.querySelectorAll('#listaZonas .grupo-zonas')].length;
+    const chips = document.querySelectorAll('#listaZonas .grupos-vazios .chip-grupo').length;
+    return (cab === 1 && chips === estado.grupos.length - 1) || `cabeçalhos ${cab}, chips ${chips}`;
+  });
+  teste('lista: árvore tem lixeira, e ela exclui', () => {
+    vazio(); document.querySelector('#ferramentas [data-f="arvore"]').click(); clicar(-3, 5);
+    atualizarPaineis();
+    document.querySelector('#listaZonas .item-objeto .lixo')?.click();
+    return estado.objetos.length === 0 || 'não excluiu';
+  });
+  teste('desenhando sem o norte: aparece "Falta dizer onde fica o norte"; com o norte, some', () => {
+    vazio(); estado.norteDefinido = false; atualizarPaineis(); atualizarBotaoDesenho();
+    const falta = !$('btnIrNorte').classList.contains('oculto');
+    estado.norteDefinido = true; atualizarPaineis(); atualizarBotaoDesenho();
+    const some = $('btnIrNorte').classList.contains('oculto');
+    return (falta && some) || `falta ${falta}, some ${some}`;
+  });
+  teste('Ajustar à tela: a dica de baixo não cobre o terreno', () => {
+    vazio(); ajustar();
+    const rect = canvas.getBoundingClientRect(), d = $('dica').getBoundingClientRect();
+    return rect.top + vista.oy + estado.rows * vista.zoom <= d.top || 'cobre';
+  });
+
+  // ---- correções da revisão da etapa 5
+  teste('sem o norte definido, não diz "não afeta a horta" (pede o norte)', () => {
+    vazio(); estado.norteDefinido = false;
+    categoria('canteiro'); jeito('ret'); arrastar(20.5, 20.5, 30.5, 30.5);
+    estado.objetos.push({ id: 900, tipo: 'arvore', nome: 'Longe', x: -40, y: -40, diametro: 2, altura: 3, folhas: 'perene' });
+    invalidarSol();
+    return objetoSombreiaHorta(estado.objetos[0]) === 'semNorte' || String(objetoSombreiaHorta(estado.objetos[0]));
+  });
+  teste('campinho da altura: sem digitar, fechar não desfaz a altura mudada no painel', () => {
+    vazio(); categoria('muro'); jeito('ret'); arrastar(5.5, 5.5, 25.5, 15.5);
+    const z = zonaPorId(zonaAtiva);
+    z.altura = 2.8;   // como se tivesse mudado no painel da direita
+    const n = historico.length;
+    clicar(30, 40);   // clicar no mapa fecha o campinho
+    return (z.altura === 2.8 && historico.length === n) || `altura ${z.altura}, desfazer ${historico.length - n}`;
+  });
+  teste('campinho da altura some (sem gravar) quando a horta é trocada', () => {
+    vazio(); categoria('muro'); jeito('ret'); arrastar(5.5, 5.5, 25.5, 15.5);
+    $('alturaRapida').querySelector('input').value = '9';
+    estado = migrar(estadoVazio({ largura: 10, comprimento: 10 })); depoisDeTrocarEstado();
+    return ($('alturaRapida').classList.contains('oculto') && alturaRapida === null) || 'continuou aberto';
+  });
+  teste('Borracha "Área inteira": só apaga ao soltar (um zoom de dois dedos não apaga)', () => {
+    vazio(); categoria('canteiro'); jeito('ret'); arrastar(10.5, 10.5, 15.5, 15.5);
+    document.querySelector('#ferramentas [data-f="borracha"]').click();
+    document.querySelector('#tamPincel [data-t="area"]').click();
+    ponto('pointerdown', 12, 12, 'touch', 1);
+    const depoisDoToque = estado.zonas.length;
+    ponto('pointerdown', 20, 20, 'touch', 2);   // segundo dedo: vira zoom
+    ponto('pointerup', 20, 20, 'touch', 2); ponto('pointerup', 12, 12, 'touch', 1);
+    document.querySelector('#tamPincel [data-t="1"]').click();
+    return (depoisDoToque === 1 && estado.zonas.length === 1) || `apagou: ${depoisDoToque}, ${estado.zonas.length}`;
+  });
+  teste('clique fora do terreno com uma categoria: volta para Selecionar', () => {
+    vazio(); categoria('canteiro'); jeito('ret');
+    clicar(-5, 10);
+    return (ferramenta === 'selecionar' && !estado.zonas.length) || `ferramenta ${ferramenta}`;
+  });
+
   teste('nenhum erro no console durante os testes', () => !erros.length || erros.join(' | '));
   alternarDesenho(false);
 

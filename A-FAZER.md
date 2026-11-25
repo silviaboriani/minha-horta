@@ -50,21 +50,22 @@ Erros:
 - [x] "Criar vários canteiros": o muro continua selecionado junto com os canteiros novos.
 - [x] "Preencher caminhos no espaço vazio" põe o caminho em "Sem grupo"; deveria ir para Caminhos.
 Ferramentas:
-- [ ] Linha: terminar também ao encostar no ponto inicial (fecha a forma), com clique do botão direito ou com duplo clique (Enter já termina).
-- [ ] Um clique simples no vazio (sem arrastar) larga a ferramenta e volta para Selecionar.
-- [ ] Tirar a ferramenta "Preencher" (não está claro para que serve).
-- [ ] Borracha com a opção "área inteira", para apagar sem precisar pintar.
-- [ ] "Onde fica o norte" mais explícito durante o desenho.
+- [x] Linha: terminar também ao encostar no ponto inicial (fecha a forma), com clique do botão direito ou com duplo clique (Enter já termina).
+- [x] Um clique simples no vazio (sem arrastar) larga a ferramenta e volta para Selecionar.
+- [x] Tirar a ferramenta "Preencher" (não está claro para que serve).
+- [x] Borracha com a opção "área inteira", para apagar sem precisar pintar.
+- [x] "Onde fica o norte" mais explícito durante o desenho.
 Muros, construções e árvores:
-- [ ] Ao terminar de desenhar um muro ou uma construção, aparece um campinho em cima dele para escrever a altura.
-- [ ] Muro: escolher o material. Sólido faz sombra; tela ou alambrado não (melhor que pôr altura 0).
-- [ ] Árvore ou construção que não faz sombra na horta: mostrar "não afeta a horta".
+- [x] Ao terminar de desenhar um muro ou uma construção, aparece um campinho em cima dele para escrever a altura.
+- [x] Muro desenhado com Retângulo ou Círculo fica só com a borda (um quadrado de largura). Depois, se for útil: escolher a espessura.
+- [x] Muro: escolher o material. Sólido faz sombra; tela ou alambrado não (melhor que pôr altura 0).
+- [x] Árvore ou construção que não faz sombra na horta: mostrar "não afeta a horta".
 Aparência:
-- [ ] Fundo quadriculado também fora do terreno (cinza, com a grade mais clara que a da horta), para mostrar que dá para desenhar ali. Ao terminar o desenho, a grade de fora some (como as árvores de fora).
-- [ ] Lista de áreas: lixeira ao lado dos m² em todos os itens, não só no selecionado.
-- [ ] Nomes dos grupos cortados ("MUROS E C…", "CONSTRUÇ…", "COMPOSTEI…").
-- [ ] Grupos vazios ocupam muito espaço (vários "Vazio: arraste para cá"): juntar numa linha só.
-- [ ] A dica de baixo cobre o fim do terreno em telas menores.
+- [x] Fundo quadriculado também fora do terreno (cinza, com a grade mais clara que a da horta), para mostrar que dá para desenhar ali. Ao terminar o desenho, a grade de fora some (como as árvores de fora).
+- [x] Lista de áreas: lixeira ao lado dos m² em todos os itens, não só no selecionado.
+- [x] Nomes dos grupos cortados ("MUROS E C…", "CONSTRUÇ…", "COMPOSTEI…").
+- [x] Grupos vazios ocupam muito espaço (vários "Vazio: arraste para cá"): juntar numa linha só.
+- [x] A dica de baixo cobre o fim do terreno em telas menores.
 
 ## Etapa 6 — Plantas e canteiros
 Erros:

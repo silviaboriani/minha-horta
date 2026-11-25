@@ -28,9 +28,11 @@ let mesSol = new Date().getMonth();
 let mostrarSol = true;
 let objetoAtivo = null;
 let cacheSol = null;
+const cacheAfeta = new Map();     // id do objeto → faz sombra nos canteiros? (limpo a cada mudança)
+let cachePontosCanteiros = null;  // centros (em metros) dos quadrados de canteiro, e a caixa deles
 
 // Chamado sempre que algo muda: limpa o cálculo do sol e a análise dos canteiros (plano.js)
-function invalidarSol() { cacheSol = null; cacheAnalise = null; }
+function invalidarSol() { cacheSol = null; cacheAnalise = null; cacheAfeta.clear(); cachePontosCanteiros = null; }
 const objetoPorId = id => estado.objetos.find(o => o.id === id);
 const ladoM = () => estado.tamanhoCelulaCm / 100;
 const arred = (v, passo = 0.1) => Number((Math.round(v / passo) * passo).toFixed(2));
@@ -107,6 +109,58 @@ function raioBateArvore(px, py, a, t) {
   return ALTURA_PLANTA + t1 * a.k < t.topo && ALTURA_PLANTA + t2 * a.k > t.base;
 }
 
+// Muro de tela, grade ou alambrado deixa o sol passar
+const fazSombra = z => TIPOS_COM_ALTURA.includes(z.tipo) && !(z.tipo === 'muro' && z.material === 'tela');
+// Árvore = cilindro da copa; construção = caixa (em metros)
+const formaArvore = (o, semFolhas) => ({ x: o.x, y: o.y, r: o.diametro / 2, topo: o.altura, base: o.altura * 0.3,
+  bloqueio: o.folhas === 'caduca' && semFolhas ? 0.3 : 0.85 });
+const formaPredio = o => ({ x0: o.x, y0: o.y, x1: o.x + o.largura, y1: o.y + o.profundidade, h: o.altura });
+
+function pontosDosCanteiros() {
+  if (cachePontosCanteiros) return cachePontosCanteiros;
+  const { cols, celulas } = estado;
+  const L = ladoM();
+  const plantaveis = new Set(estado.zonas.filter(z => TIPOS_PLANTAVEIS.includes(z.tipo)).map(z => z.id));
+  const pts = [];
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  celulas.forEach((v, i) => {
+    if (!plantaveis.has(v)) return;
+    const x = (i % cols + 0.5) * L, y = (Math.floor(i / cols) + 0.5) * L;
+    pts.push([x, y]);
+    if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+  });
+  return (cachePontosCanteiros = { pts, x0, y0, x1, y1 });
+}
+// A árvore ou construção faz sombra em algum canteiro, em alguma época do ano?
+// true / false; null sem canteiros (não dá para saber); 'semNorte' enquanto o norte não foi definido.
+// Testa março, junho, setembro e dezembro (equinócios e solstícios: os extremos do caminho do sol).
+function objetoSombreiaHorta(o) {
+  if (!estado.norteDefinido) return 'semNorte';
+  if (cacheAfeta.has(o.id)) return cacheAfeta.get(o.id);
+  const { pts, x0, y0, x1, y1 } = pontosDosCanteiros();
+  let res = null;
+  if (pts.length) {
+    // Longe demais: a sombra mais comprida (sol a 5° de altura) não chega nem perto dos canteiros
+    const ox0 = o.tipo === 'arvore' ? o.x - o.diametro / 2 : o.x, ox1 = o.tipo === 'arvore' ? o.x + o.diametro / 2 : o.x + o.largura;
+    const oy0 = o.tipo === 'arvore' ? o.y - o.diametro / 2 : o.y, oy1 = o.tipo === 'arvore' ? o.y + o.diametro / 2 : o.y + o.profundidade;
+    const dist = Math.hypot(Math.max(0, x0 - ox1, ox0 - x1), Math.max(0, y0 - oy1, oy0 - y1));
+    if (dist > o.altura / Math.tan(ALTURA_MINIMA_SOL * RAD)) res = false;
+    else {
+      const arv = o.tipo === 'arvore' ? formaArvore(o, false) : null, caixa = arv ? null : formaPredio(o);
+      res = [2, 5, 8, 11].some(mes => amostrasDoSol(mes).some(a =>
+        pts.some(([px, py]) => (arv ? raioBateArvore(px, py, a, arv) : raioBateCaixa(px, py, a, caixa)))));
+    }
+  }
+  cacheAfeta.set(o.id, res);
+  return res;
+}
+const TXT_AFETA = {
+  true: '☁️ Faz sombra em canteiros em parte do ano.',
+  false: '✓ Não afeta a horta: a sombra não chega aos canteiros em nenhuma época.',
+  null: 'Desenhe os canteiros para ver se a sombra chega neles.',
+  semNorte: 'Defina onde fica o norte para saber se a sombra chega aos canteiros.',
+};
+
 // Calcula as horas de sol direto em cada quadrado num dia típico do mês
 function calcularSol(mes) {
   const { cols, rows, celulas } = estado;
@@ -117,7 +171,7 @@ function calcularSol(mes) {
 
   // Altura de cada quadrado (muros etc. desenhados no mapa)
   const alturaZona = {};
-  for (const z of estado.zonas) alturaZona[z.id] = TIPOS_COM_ALTURA.includes(z.tipo) ? (z.altura || 0) : 0;
+  for (const z of estado.zonas) alturaZona[z.id] = fazSombra(z) ? (z.altura || 0) : 0;
   const alt = new Float32Array(n);
   let maxParede = 0;
   for (let i = 0; i < n; i++) {
@@ -128,13 +182,8 @@ function calcularSol(mes) {
   // Árvores de folhas caducas deixam passar mais sol no inverno
   const mesesSemFolhas = estado.local.lat < 0 ? [5, 6, 7] : [11, 0, 1];
   const semFolhas = mesesSemFolhas.includes(mes);
-  const arvores = estado.objetos.filter(o => o.tipo === 'arvore').map(o => ({
-    x: o.x, y: o.y, r: o.diametro / 2, topo: o.altura, base: o.altura * 0.3,
-    bloqueio: o.folhas === 'caduca' && semFolhas ? 0.3 : 0.85,
-  }));
-  const predios = estado.objetos.filter(o => o.tipo === 'construcao').map(o => ({
-    x0: o.x, y0: o.y, x1: o.x + o.largura, y1: o.y + o.profundidade, h: o.altura,
-  }));
+  const arvores = estado.objetos.filter(o => o.tipo === 'arvore').map(o => formaArvore(o, semFolhas));
+  const predios = estado.objetos.filter(o => o.tipo === 'construcao').map(formaPredio);
 
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
@@ -497,7 +546,7 @@ function solSoltar(pt) {
     if (pt.moveu || pt.alterou) { registrar(pt.antes); mudou(); }
   } else if (pt.modo === 'novaConstrucao') {
     const k = caixaMetros(pt.ini, pt.fim);
-    if (k.largura < 0.4 || k.profundidade < 0.2) return;
+    if (k.largura < 0.4 || k.profundidade < 0.2) { largarFerramenta(); return; }   // clique sem arrastar: volta para Selecionar
     const antes = JSON.stringify(estado);
     const n = estado.objetos.filter(o => o.tipo === 'construcao').length + 1;
     const o = { id: estado.proximoObjId++, tipo: 'construcao', nome: `Construção ${n}`, ...k, altura: 3, grupo: grupoAutoDe('construcao') };
@@ -505,7 +554,7 @@ function solSoltar(pt) {
     registrar(antes);
     selecionarObjeto(o.id);
     mudou();
-    avisar('Construção adicionada. Ajuste a altura no painel à direita.');
+    abrirAlturaRapida({ objeto: o.id });
   }
 }
 
@@ -670,6 +719,9 @@ function atualizarPaineisSol() {
   $('sNorteTxt').textContent = `${estado.norteGraus}°`;
   $('okNorte').textContent = estado.norteDefinido ? '✓' : '';
   $('avisoNorte').classList.toggle('oculto', estado.norteDefinido);
+  // desenhando sem o norte: chamada no painel da esquerda e o quadro do norte em destaque
+  $('btnIrNorte').classList.toggle('oculto', estado.norteDefinido || !editandoDesenho);
+  $('secNorte').classList.toggle('falta', !estado.norteDefinido);
   desenharBussolaPainel();
 
   // Árvore ou construção selecionada (no desenho)
@@ -682,6 +734,9 @@ function atualizarPaineisSol() {
     set('oAltura', o.altura);
     if (o.tipo === 'arvore') { set('oDiametro', o.diametro); set('oFolhas', o.folhas); }
     else { set('oLargura', o.largura); set('oProfundidade', o.profundidade); }
+    const afeta = objetoSombreiaHorta(o);
+    $('oEfeito').textContent = TXT_AFETA[afeta];
+    $('oEfeito').className = 'efeito-sombra ' + (afeta === false ? 'nao-afeta' : '');
   }
 
   // 4. Sol em cada área
@@ -706,6 +761,7 @@ function atualizarPaineisSol() {
 
 function trocarModo(m) {
   if (m === modo) return;
+  fecharAlturaRapida();
   tracado = null;
   ferramentaPorModo[modo] = ferramenta;
   modo = m;

@@ -27,7 +27,7 @@ const GRUPOS_AUTO = [
 ];
 const grupoAutoDe = (tipo, e = estado) => (e.grupos || []).find(g => g.tipoAuto === tipo)?.id ?? null;
 const FERRAMENTAS_COM_PINCEL = ['pincel', 'borracha', 'meiaSombra', 'sombraTotal', 'limparSombra'];
-const FERRAMENTAS_DE_PINTAR = [...FERRAMENTAS_COM_PINCEL, 'balde', 'retangulo'];
+const FERRAMENTAS_DE_PINTAR = [...FERRAMENTAS_COM_PINCEL, 'retangulo'];
 
 // Desenho: uma ferramenta por categoria (Canteiro, Caminho, Muro…), todas com id 'forma' e o seu tipo;
 // o jeito de desenhar (retângulo, círculo, linha) é escolhido logo abaixo (formas.js)
@@ -42,10 +42,8 @@ const FERRAMENTAS = [
     dica: 'Arraste para desenhar uma casa, galpão ou muro alto — <b>pode ser fora do terreno</b>.' },
   { id: 'pincel', icone: '🖌️', nome: 'Pincel', tecla: 'B',
     dica: 'Arraste para pintar com <b>{zona}</b>.' },
-  { id: 'balde', icone: '🪣', nome: 'Preencher', tecla: 'G',
-    dica: `${TXT.clique} para preencher o espaço com <b>{zona}</b>.` },
   { id: 'borracha', icone: '🧽', nome: 'Borracha', tecla: 'E',
-    dica: 'Arraste para apagar.' },
+    dica: `Arraste para apagar · com “Área inteira”, ${TXT.clique.toLowerCase()} numa área para apagar ela toda.` },
 ];
 
 // ---------- Estado ----------
@@ -59,6 +57,7 @@ const ferramentaPorModo = { mapa: 'selecionar', sol: 'meiaSombra', plantas: null
 let editandoDesenho = false;              // aba Horta: false = planejar, true = ferramentas de desenho
 let ferramenta = 'selecionar';
 let tamPincel = 1;
+let borrachaArea = false;                 // Borracha: true = apaga a área inteira com um clique
 let zonaAtiva = null;   // começa sem área selecionada: o painel mostra as tarefas do mês
 let ponteiro = null;      // operação em andamento (pintar, retângulo, mover)
 let cursor = null;        // célula sob o mouse
@@ -179,6 +178,7 @@ function refazer() {
 }
 function depoisDeTrocarEstado() {
   tracado = null;   // a linha pela metade era da horta de antes
+  descartarAlturaRapida();
   if (!objetoPorId(objetoAtivo)) objetoAtivo = null;
   if (!zonaPorId(zonaAtiva)) zonaAtiva = objetoAtivo ? null : estado.zonas[0]?.id ?? null;
   mudou();
@@ -223,19 +223,6 @@ function linha(c0, r0, c1, r1, fn) {
     if (e2 > -dr) { err -= dr; c0 += sc; }
     if (e2 < dc) { err += dc; r0 += sr; }
   }
-}
-
-function preencher(c, r, id) {
-  const alvo = celula(c, r);
-  if (alvo < 0 || alvo === id) return false;
-  const pilha = [[c, r]];
-  while (pilha.length) {
-    const [x, y] = pilha.pop();
-    if (celula(x, y) !== alvo) continue;
-    estado.celulas[idx(x, y)] = id;
-    pilha.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
-  }
-  return true;
 }
 
 function limitar(p) {
@@ -316,6 +303,20 @@ function desenharEm(g, W, H, escala, v, interativo) {
   g.setTransform(escala, 0, 0, escala, 0, 0);
   g.fillStyle = '#ecebe4';
   g.fillRect(0, 0, W, H);
+
+  // Desenhando: fundo quadriculado também fora do terreno (mais clarinho), para mostrar que dá para desenhar ali.
+  // Ao terminar o desenho ele some (como as árvores e construções de fora).
+  if (interativo && modo === 'mapa' && editandoDesenho) {
+    const passo = s >= 5 ? 1 : 5;   // longe demais: um traço a cada 5 quadrados
+    const cA = Math.floor(-v.ox / s / passo) * passo, cB = Math.ceil((W - v.ox) / s);
+    const rA = Math.floor(-v.oy / s / passo) * passo, rB = Math.ceil((H - v.oy) / s);
+    g.beginPath();
+    for (let c = cA; c <= cB; c += passo) { g.moveTo(X(c) + .5, 0); g.lineTo(X(c) + .5, H); }
+    for (let r = rA; r <= rB; r += passo) { g.moveTo(0, Y(r) + .5); g.lineTo(W, Y(r) + .5); }
+    g.strokeStyle = 'rgba(60,60,50,.07)';
+    g.lineWidth = 1;
+    g.stroke();
+  }
 
   // Terreno
   g.fillStyle = 'rgba(0,0,0,.07)';
@@ -439,8 +440,14 @@ function desenharEm(g, W, H, escala, v, interativo) {
     g.fillText(txt, x + 6, y - 12);
   }
 
+  // Borracha "Área inteira": a área embaixo do mouse fica marcada em vermelho
+  if (cursor && !ponteiro && ferramenta === 'borracha' && borrachaArea && !espaco && celula(cursor.c, cursor.r) > 0) {
+    const alvo = celula(cursor.c, cursor.r);
+    g.fillStyle = 'rgba(179,38,30,.35)';
+    estado.celulas.forEach((v, i) => { if (v === alvo) { const c = i % estado.cols, r = (i - c) / estado.cols; g.fillRect(X(c), Y(r), X(c + 1) - X(c), Y(r + 1) - Y(r)); } });
+  }
   // Marca do cursor (tamanho do pincel)
-  if (cursor && !ponteiro && FERRAMENTAS_DE_PINTAR.includes(ferramenta) && !espaco) {
+  else if (cursor && !ponteiro && FERRAMENTAS_DE_PINTAR.includes(ferramenta) && !espaco) {
     const t = FERRAMENTAS_COM_PINCEL.includes(ferramenta) ? tamPincel : 1;
     const off = Math.floor((t - 1) / 2);
     const cc = cursor.c - off, rr = cursor.r - off;
@@ -566,10 +573,12 @@ function ajustar() {
   }
   const lc = k.c1 - k.c0, lr = k.r1 - k.r0;
   const topo = modo === 'mapa' ? 48 : 0;   // espaço para a barra de meses
-  const z = Math.min((w - 90) / lc, (h - 70 - topo) / lr);
+  const baixo = Math.max(35, ($('dica').offsetHeight || 0) + 22);   // a dica de baixo não cobre o terreno
+  const alto = h - topo - baixo - 35;
+  const z = Math.min((w - 90) / lc, alto / lr);
   vista.zoom = Math.min(70, Math.max(3, z));
   vista.ox = Math.round((w - lc * vista.zoom) / 2 + 15 - k.c0 * vista.zoom);
-  vista.oy = Math.round((h - topo - lr * vista.zoom) / 2 + 5 + topo - k.r0 * vista.zoom);
+  vista.oy = Math.round(topo + 35 + (alto - lr * vista.zoom) / 2 - k.r0 * vista.zoom);
   atualizarZoomTxt();
   desenhar();
 }
@@ -622,6 +631,7 @@ function moverGesto() {
 
 canvas.addEventListener('pointerdown', ev => {
   tipoPonteiro.atual = ev.pointerType;
+  fecharAlturaRapida();
   try { canvas.setPointerCapture(ev.pointerId); } catch { /* ponteiro já solto */ }
   if (ev.pointerType === 'touch') {
     dedos.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
@@ -631,6 +641,8 @@ canvas.addEventListener('pointerdown', ev => {
   const p = posicao(ev);
   cursor = p;
 
+  // botão direito com a linha pela metade: termina a linha (sem ela, o direito move o mapa)
+  if (ev.button === 2 && tracado && modo === 'mapa' && editandoDesenho) { ev.preventDefault(); terminarTracado(); desenhar(); return; }
   if (ev.button === 1 || ev.button === 2 || ferramenta === 'mao' || espaco) {
     ponteiro = { modo: 'mover', x: ev.clientX, y: ev.clientY, ox: vista.ox, oy: vista.oy };
     canvas.classList.add('arrastando');
@@ -669,6 +681,12 @@ canvas.addEventListener('pointerdown', ev => {
     }
     case 'pincel':
     case 'borracha': {
+      if (ferramenta === 'borracha' && borrachaArea) {
+        // Área inteira: apaga a área clicada de uma vez (Ctrl+Z desfaz)
+        const id = celula(p.c, p.r);
+        if (id > 0) ponteiro = { modo: 'apagarArea', id };
+        return;
+      }
       if (ferramenta === 'pincel' && !exigirZona()) return;
       const id = ferramenta === 'borracha' ? 0 : zonaAtiva;
       const antes = JSON.stringify(estado);
@@ -682,12 +700,6 @@ canvas.addEventListener('pointerdown', ev => {
       const ini = limitar(p);
       ponteiro = { modo: 'ret', ini, fim: ini, apagar: ev.altKey };
       desenhar();
-      return;
-    }
-    case 'balde': {
-      if (!exigirZona() || !dentro(p.c, p.r)) return;
-      const antes = JSON.stringify(estado);
-      if (preencher(p.c, p.r, zonaAtiva)) { registrar(antes); mudou(); }
       return;
     }
   }
@@ -742,6 +754,8 @@ function soltar() {
     if (pt.alterou) { registrar(pt.antes); mudou(); }
   } else if (pt.sol) {
     solSoltar(pt);
+  } else if (pt.modo === 'apagarArea') {
+    if (zonaPorId(pt.id)) { limparSelecaoExtra(); zonaAtiva = pt.id; objetoAtivo = null; deletarZona(); }
   } else if (pt.modo === 'pintar') {
     if (pt.alterou) { registrar(pt.antes); mudou(); }
   } else if (pt.modo === 'ret') {
@@ -834,6 +848,7 @@ document.addEventListener('keyup', ev => {
 // Liga/desliga as ferramentas de desenho da aba Horta
 function alternarDesenho(ligar) {
   editandoDesenho = ligar;
+  fecharAlturaRapida();
   tracado = null;
   limparSelecaoExtra();
   ferramenta = ligar ? 'forma' : 'selecionar';
@@ -843,6 +858,12 @@ function alternarDesenho(ligar) {
   aplicarVisibilidadeModo();
   atualizarPaineis();
   ajustar();   // desenhando, aparece a folga fora do terreno
+}
+// "Falta o norte": leva ao quadro do norte (painel da direita) e pisca
+function irParaNorte() {
+  const s = $('secNorte');
+  s.scrollIntoView({ block: 'center' });
+  s.classList.remove('piscar'); void s.offsetWidth; s.classList.add('piscar');
 }
 function atualizarBotaoDesenho() {
   $('btnEditarDesenho').innerHTML = editandoDesenho ? '✓ Terminar desenho' : '✏️ Editar desenho';
@@ -883,12 +904,17 @@ function montarFerramentas() {
     box.appendChild(b);
   }
   document.querySelectorAll('#tamPincel button').forEach(b => {
-    b.onclick = () => { tamPincel = Number(b.dataset.t); atualizarFerramentas(); };
+    b.onclick = () => {
+      if (b.dataset.t === 'area') borrachaArea = true;
+      else { tamPincel = Number(b.dataset.t); borrachaArea = false; }
+      atualizarFerramentas(); desenhar();
+    };
   });
 }
 
 function escolherFerramenta(id) {
   ferramenta = id;
+  fecharAlturaRapida();
   tracado = null;   // linha pela metade não continua noutra ferramenta
   atualizarFerramentas();
   desenhar();
@@ -897,7 +923,11 @@ function escolherFerramenta(id) {
 function atualizarFerramentas() {
   document.querySelectorAll('#ferramentas button').forEach(b => b.classList.toggle('ativa',
     b.dataset.f === ferramenta && (!b.dataset.tipo || b.dataset.tipo === tipoNovaForma)));
-  document.querySelectorAll('#tamPincel button').forEach(b => b.classList.toggle('ativa', Number(b.dataset.t) === tamPincel));
+  const areaInteira = ferramenta === 'borracha' && borrachaArea;
+  document.querySelectorAll('#tamPincel button').forEach(b => {
+    if (b.dataset.t === 'area') { b.classList.toggle('oculto', ferramenta !== 'borracha'); b.classList.toggle('ativa', areaInteira); }
+    else b.classList.toggle('ativa', !areaInteira && Number(b.dataset.t) === tamPincel);
+  });
   $('linhaPincel').classList.toggle('oculto', !FERRAMENTAS_COM_PINCEL.includes(ferramenta));
   canvas.className = 'f-' + ferramenta;
   canvas.style.cursor = '';
@@ -1006,10 +1036,14 @@ function itemObjeto(o) {
   const li = document.createElement('li');
   li.className = 'item-objeto';
   li.draggable = true;
+  const afeta = objetoSombreiaHorta(o);
   li.innerHTML = `<span class="amostra-ic">${o.tipo === 'arvore' ? '🌳' : '🏠'}</span><span class="nome">${escapar(o.nome)}</span>` +
-    `<span class="area">${fmt(o.altura, 1)} m</span><span class="ir" title="Editar no desenho">✏️ ›</span>`;
-  li.title = 'Faz sombra na horta — clique para editar no desenho; arraste para outro grupo';
-  li.onclick = () => {
+    (afeta === false ? '<span class="nao-afeta" title="A sombra não chega aos canteiros">não afeta</span>' : '') +
+    `<span class="area">${fmt(o.altura, 1)} m</span><span class="ir" title="Editar no desenho">✏️ ›</span>` +
+    `<button class="lixo" title="Excluir">🗑</button>`;
+  li.title = `${TXT_AFETA[afeta]} Clique para editar no desenho; arraste para outro grupo.`;
+  li.onclick = ev => {
+    if (ev.target.closest('.lixo')) { objetoAtivo = o.id; excluirObjeto(); avisar(`“${o.nome}” excluída. Ctrl+Z (ou ↶ Desfazer) traz de volta.`); return; }
     if (modo !== 'mapa') trocarModo('mapa');
     if (!editandoDesenho) alternarDesenho(true);
     selecionarObjeto(o.id);
@@ -1021,6 +1055,25 @@ function itemObjeto(o) {
 
 // Cabeçalho de grupo: clicar abre/fecha; ✏️ renomeia; 🗑 apaga (o conteúdo vai para "Sem grupo")
 let semGrupoFechado = false;
+// Linha "Vazios": um chip por grupo sem nada (soltar uma área nele põe a área no grupo; × apaga o grupo)
+function linhaGruposVazios(grupos) {
+  const li = document.createElement('li');
+  li.className = 'grupos-vazios';
+  li.innerHTML = '<span class="rot">Vazios:</span>' + grupos.map(g =>
+    `<span class="chip-grupo" data-grupo="${g.id}" title="${TOQUE ? 'Grupo vazio' : 'Grupo vazio: arraste uma área para cá'}">${g.icone ? g.icone + ' ' : ''}${escapar(g.nome)}` +
+    `<button class="acao" data-apagar-grupo="${g.id}" title="Apagar grupo" aria-label="Apagar grupo ${escapar(g.nome)}">×</button></span>`).join('');
+  li.querySelectorAll('.chip-grupo').forEach(ch => alvoDeSoltar(ch, Number(ch.dataset.grupo)));
+  li.onclick = ev => {
+    const b = ev.target.closest('[data-apagar-grupo]');
+    if (!b) return;
+    const g = grupoPorId(Number(b.dataset.apagarGrupo));
+    if (!g) return;
+    registrar(); estado.grupos = estado.grupos.filter(x => x !== g); mudou();
+    avisar(`Grupo “${g.nome}” apagado. (↶ desfaz)`);
+  };
+  return li;
+}
+
 function cabecalhoGrupo(g, n) {
   const li = document.createElement('li');
   const fechado = g ? g.fechado : semGrupoFechado;
@@ -1067,20 +1120,15 @@ function atualizarListaZonas() {
     ...estado.zonas.filter(z => grupoValido(z) === gid).sort(ordemNome).map(z => () => itemZona(z, cont, lado)),
     ...estado.objetos.filter(o => grupoValido(o) === gid).sort(ordemNome).map(o => () => itemObjeto(o)),
   ];
-  // Todos os grupos ficam sempre à mostra (na ordem em que existem), mesmo vazios
+  // Grupos com algo, na ordem em que existem; os vazios ficam juntos numa linha só, no fim
+  const vazios = [];
   for (const g of estado.grupos) {
     const itens = itensDe(g.id);
+    if (!itens.length) { vazios.push(g); continue; }
     ul.appendChild(cabecalhoGrupo(g, itens.length));
-    if (g.fechado) continue;
-    if (!itens.length) {
-      const dica = document.createElement('li');
-      dica.className = 'grupo-vazio';
-      dica.textContent = TOQUE ? 'Vazio' : 'Vazio: arraste para cá';
-      alvoDeSoltar(dica, g.id);
-      ul.appendChild(dica);
-    }
-    itens.forEach(f => ul.appendChild(f()));
+    if (!g.fechado) itens.forEach(f => ul.appendChild(f()));
   }
+  if (vazios.length) ul.appendChild(linhaGruposVazios(vazios));
   // "Sem grupo": só aparece quando tem algo
   const sem = itensDe(null);
   if (sem.length) {
@@ -1125,14 +1173,15 @@ function atualizarFormZona() {
   if (ativo !== $('zNome')) $('zNome').value = z.nome;
   if (ativo !== $('zTipo')) $('zTipo').value = z.tipo;
   if (ativo !== $('zCor')) $('zCor').value = z.cor;
-  if (ativo !== $('zAltura')) $('zAltura').value = z.altura || 0;
   $('zGrupo').innerHTML = `<option value="">Sem grupo</option>` +
     estado.grupos.map(g => `<option value="${g.id}">${escapar(g.nome)}</option>`).join('') +
     `<option value="__nova">＋ Novo grupo…</option>`;
   $('zGrupo').value = grupoPorId(z.grupo) ? String(z.grupo) : '';
   renderPlantio(z);
   if (ativo !== $('zAltura')) $('zAltura').value = z.altura || 0;
-  $('zAlturaLinha').classList.toggle('oculto', !TIPOS_COM_ALTURA.includes(z.tipo));
+  $('zMaterialLinha').classList.toggle('oculto', z.tipo !== 'muro');
+  if (ativo !== $('zMaterial')) $('zMaterial').value = z.material || 'solido';
+  $('zAlturaLinha').classList.toggle('oculto', !fazSombra(z));
   const md = medidasDaZona(z.id);
   // desenhando: a edição (nome, tipo…) vem logo abaixo do topo; planejando: lá embaixo
   const depois = editandoDesenho ? $('zPlantio') : $('zMais');
@@ -1222,6 +1271,7 @@ function montarFormularios() {
   const tituloDaZonaAtiva = () => { const z = zonaPorId(zonaAtiva); if (z) renderTituloZona(z); };
   $('zDetalhes').addEventListener('toggle', tituloDaZonaAtiva);
   ligarCampo($('zCor'), v => { const z = zonaPorId(zonaAtiva); if (z) z.cor = v; });
+  ligarCampo($('zMaterial'), v => { const z = zonaPorId(zonaAtiva); if (z) z.material = v; });
   ligarCampo($('zAltura'), v => {
     const z = zonaPorId(zonaAtiva);
     const n = Number(String(v).replace(',', '.'));
@@ -1373,6 +1423,7 @@ $('btnZoomMais').onclick = () => zoomCentro(1.2);
 $('btnZoomMenos').onclick = () => zoomCentro(1 / 1.2);
 $('btnAjustar').onclick = ajustar;
 $('btnEditarDesenho').onclick = () => alternarDesenho(!editandoDesenho);
+$('btnIrNorte').onclick = irParaNorte;
 document.querySelectorAll('[data-aba]').forEach(b => {
   b.onclick = () => { const antes = modo; trocarModo(b.dataset.aba); if (antes !== modo) ajustar(); };
 });

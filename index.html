@@ -74,6 +74,7 @@
       <section data-modo="mapa" class="sec-desenho">
         <button id="btnEditarDesenho" class="editar-desenho"></button>
         <p class="nota" id="notaDesenho"></p>
+        <button id="btnIrNorte" class="ir-norte oculto" title="O norte muda as horas de sol de cada canteiro">🧭 Falta dizer onde fica o norte — definir agora</button>
       </section>
 
       <section data-modo="mapa sol" id="secFerramentas">
@@ -82,7 +83,7 @@
         <div class="linha-pincel" id="linhaPincel">
           <span>Tamanho do pincel</span>
           <div class="seg" id="tamPincel">
-            <button data-t="1">1</button><button data-t="2">2</button><button data-t="3">3</button><button data-t="5">5</button>
+            <button data-t="1">1</button><button data-t="2">2</button><button data-t="3">3</button><button data-t="5">5</button><button data-t="area" title="Um clique apaga a área inteira">Área inteira</button>
           </div>
         </div>
         <div class="linha-forma oculto" id="linhaForma"></div>
@@ -129,6 +130,7 @@
       <div class="faixa-meses" id="faixaMeses" data-modo="mapa"></div>
       <canvas id="mapa"></canvas>
       <div class="dica" id="dica"></div>
+      <div class="altura-rapida oculto" id="alturaRapida"></div>
       <div class="aviso oculto" id="aviso"></div>
     </div>
 
@@ -204,6 +206,12 @@
             <label>Cor <input type="color" id="zCor"></label>
           </div>
           <label>Grupo <select id="zGrupo"></select></label>
+          <label id="zMaterialLinha">Material
+            <select id="zMaterial">
+              <option value="solido">Sólido (tijolo, madeira…): faz sombra</option>
+              <option value="tela">Tela, grade ou alambrado: não faz sombra</option>
+            </select>
+          </label>
           <label id="zAlturaLinha">Altura (m) <small>(para a sombra)</small>
             <input id="zAltura" inputmode="decimal">
           </label>
@@ -222,6 +230,7 @@
 
       <section data-modo="mapa" data-desenho="sim" id="formObjeto" class="form oculto">
         <h2 id="oTitulo">Objeto selecionado</h2>
+        <p id="oEfeito" class="efeito-sombra"></p>
         <label>Nome <input id="oNome"></label>
         <div class="grade2">
           <label>Altura (m) <input id="oAltura" inputmode="decimal"></label>
@@ -249,7 +258,7 @@
         <p class="nota" id="tInfo"></p>
       </section>
 
-      <section data-modo="mapa" data-desenho="sim">
+      <section data-modo="mapa" data-desenho="sim" id="secNorte">
         <h2>🧭 Onde fica o norte <span class="ok" id="okNorte"></span> <button class="info-btn" data-info title="O que é isto?" aria-label="Explicação">ⓘ</button></h2>
         <p class="info-texto">Na horta, abra o app <b>Bússola</b> com o aparelho virado para o “topo” do mapa. O ângulo que aparecer é o quanto o norte está girado.</p>
         <p class="aviso-inline" id="avisoNorte">Ainda não definido. Gire a agulha vermelha até o norte, ou use os botões.</p>

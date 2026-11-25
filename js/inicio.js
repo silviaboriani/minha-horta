@@ -71,6 +71,7 @@ async function apagarProjetoGuardado(id) {
 }
 
 function trocarDeProjeto(novo) {
+  descartarAlturaRapida();
   estado = novo;
   historico = []; futuro = [];
   zonaAtiva = null; objetoAtivo = null; posicionando = null;

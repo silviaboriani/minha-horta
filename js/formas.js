@@ -163,6 +163,16 @@ function celsDaLinhaAberta(pts) {
   return [...set];
 }
 const celsDoTracado = pts => (linhaAberta() ? celsDaLinhaAberta(pts) : celsDoPoligono(pts));
+// Só a borda de um conjunto de quadrados: os que têm um vizinho (em cima, embaixo, dos lados) fora dele
+function contorno(cels) {
+  const cols = estado.cols, s = new Set(cels);
+  return cels.filter(i => { const c = i % cols; return !s.has(i - cols) || !s.has(i + cols) || c === 0 || c === cols - 1 || !s.has(i - 1) || !s.has(i + 1); });
+}
+// Quadrados de um retângulo ou círculo novo; muro e cerca ficam só com o contorno (como na Linha)
+function celsDaNovaForma(forma, k, tipo) {
+  const cels = forma === 'circulo' ? celsDoCirculo(k) : celsDoRet(k);
+  return tipo === 'muro' ? contorno(cels) : cels;
+}
 
 // Ponto do mapa para a linha: área fechada encaixa nos cantos dos quadrados; muro, no meio deles
 function pontoDoTracado(p) {
@@ -174,12 +184,14 @@ function pontoDoTracado(p) {
 }
 const pertoPt = (a, b) => Math.hypot(a.x - b.x, a.y - b.y) < 0.6;
 
-// Clique com a Linha: primeiro ponto, pontos seguintes; no primeiro ponto (área) ou de novo no último, termina
+// Clique com a Linha: primeiro ponto, pontos seguintes. Termina ao clicar no primeiro ponto (fecha a forma;
+// no muro, fecha a volta), de novo no último (ou duplo clique), com o botão direito ou com Enter.
+const fechaNoInicio = pt => !!tracado && tracado.pontos.length >= 3 && pertoPt(pt, tracado.pontos[0]);
 function pontoNoTracado(p) {
   const pt = pontoDoTracado(p);
   if (!tracado) { tracado = { pontos: [pt] }; atualizarFerramentas(); return; }
   const ps = tracado.pontos;
-  if (!linhaAberta() && ps.length >= 3 && pertoPt(pt, ps[0])) { terminarTracado(); return; }
+  if (fechaNoInicio(pt)) { if (linhaAberta()) ps.push({ ...ps[0] }); terminarTracado(); return; }
   if (pertoPt(pt, ps[ps.length - 1])) { terminarTracado(); return; }
   ps.push(pt);
   atualizarFerramentas();
@@ -200,7 +212,8 @@ function terminarTracado() {
   registrar(antes);
   mudou();
   atualizarFerramentas();
-  avisar(`“${nz.nome}” criado (${fmt(cels.length * metros(1) * metros(1), 1)} m²).`);
+  if (nz.tipo === 'muro') abrirAlturaRapida({ zona: nz.id });
+  else avisar(`“${nz.nome}” criado (${fmt(cels.length * metros(1) * metros(1), 1)} m²).`);
 }
 function cancelarTracado() { tracado = null; atualizarFerramentas(); desenhar(); }
 function desfazerPontoTracado() {
@@ -213,10 +226,11 @@ function desfazerPontoTracado() {
 // Dica da barra de baixo para a ferramenta de categoria
 function dicaForma() {
   const nome = `<b>${escapar(TIPOS[tipoNovaForma].nome.toLowerCase())}</b>`;
+  const fim = TOQUE ? 'toque de novo no último ponto' : 'duplo clique, botão direito ou Enter';
   if (formaDesenho === 'linha') return linhaAberta()
-    ? `${TXT.clique} ponto a ponto para traçar o ${nome}; ${TXT.clique.toLowerCase()} de novo no último ponto (ou Enter) para terminar · Esc cancela.`
-    : `${TXT.clique} ponto a ponto em volta da área; ${TXT.clique.toLowerCase()} no primeiro ponto (ou Enter) para fechar · Esc cancela.`;
-  return `Arraste no vazio para desenhar um ${formaDesenho === 'circulo' ? 'círculo' : 'retângulo'} de ${nome} · arraste uma área para mover · alças mudam o tamanho · Ctrl+D duplica.`;
+    ? `${TXT.clique} ponto a ponto para traçar o ${nome} · para terminar: ${fim} · no primeiro ponto, fecha a volta · Esc cancela.`
+    : `${TXT.clique} ponto a ponto em volta da área · no primeiro ponto, fecha · ou ${fim} · Esc cancela.`;
+  return `Arraste no vazio para desenhar um ${formaDesenho === 'circulo' ? 'círculo' : 'retângulo'} de ${nome}${tipoNovaForma === 'muro' ? ' (só a borda, um quadrado de largura)' : ''} · arraste uma área para mover${tipoNovaForma === 'muro' ? '' : ' · alças mudam o tamanho'} · Ctrl+D duplica.`;
 }
 
 // Linha logo abaixo das ferramentas: o jeito de desenhar e, com a linha pela metade, Terminar/Cancelar
@@ -231,6 +245,78 @@ function renderLinhaForma() {
     (tracado ? `<div class="tracado-acoes"><span>${tracado.pontos.length} ${tracado.pontos.length === 1 ? 'ponto' : 'pontos'}</span>
       <button data-tracado="fim" class="principal">✓ Terminar</button><button data-tracado="cancelar">✕ Cancelar</button></div>` : '');
 }
+
+// ---------- Altura rápida: logo depois de desenhar um muro ou uma construção ----------
+// Um campinho em cima do desenho para escrever a altura (e, no muro, o material), sem ir ao painel.
+let alturaRapida = null;   // { zona: id, mostrado: '1,5' } ou { objeto: id, mostrado }
+const alvoAlturaRapida = () => (alturaRapida?.zona ? zonaPorId(alturaRapida.zona) : alturaRapida?.objeto ? objetoPorId(alturaRapida.objeto) : null);
+// Canto de cima à direita do que foi desenhado, em pixels do mapa
+function cantoAlturaRapida(a) {
+  if (alturaRapida.zona) { const k = caixaDaZona(a.id); return { x: vista.ox + (k.c1 + 1) * vista.zoom, y: vista.oy + k.r0 * vista.zoom }; }
+  const L = ladoM();
+  return { x: vista.ox + (a.x + a.largura) / L * vista.zoom, y: vista.oy + a.y / L * vista.zoom };
+}
+function abrirAlturaRapida(alvo) {
+  alturaRapida = alvo;
+  const a = alvoAlturaRapida();
+  if (!a) { alturaRapida = null; return; }
+  const box = $('alturaRapida');
+  const muro = !!alturaRapida.zona;
+  alturaRapida.mostrado = fmt(a.altura || 0, 1);   // só grava se a pessoa digitar outra coisa
+  box.innerHTML = `<label>Altura <input inputmode="decimal" value="${alturaRapida.mostrado}" aria-label="Altura em metros"> m</label>
+    ${muro ? `<div class="seg">${[['solido', 'Sólido'], ['tela', 'Tela']].map(([v, n]) =>
+      `<button data-material="${v}" class="${(a.material || 'solido') === v ? 'ativa' : ''}" title="${v === 'tela' ? 'Tela, grade ou alambrado: não faz sombra' : 'Tijolo, madeira…: faz sombra'}">${n}</button>`).join('')}</div>` : ''}
+    <button data-ok class="principal" title="Pronto">✓</button>`;
+  box.classList.remove('oculto');
+  posicionarAlturaRapida();
+  // com mouse, o campo já fica pronto para digitar; no toque não (o teclado cobriria o mapa)
+  if (tipoPonteiro.atual !== 'touch' && !TOQUE) { const inp = box.querySelector('input'); inp.focus({ preventScroll: true }); inp.select(); }
+}
+function posicionarAlturaRapida() {
+  const a = alvoAlturaRapida();
+  if (!a) return;
+  const p = cantoAlturaRapida(a), box = $('alturaRapida'), area = box.parentElement;
+  box.style.left = Math.max(4, Math.min(area.clientWidth - box.offsetWidth - 4, p.x + 6)) + 'px';
+  box.style.top = Math.max(4, Math.min(area.clientHeight - box.offsetHeight - 4, p.y - box.offsetHeight - 6)) + 'px';
+}
+function fecharAlturaRapida() {
+  if (!alturaRapida) return;
+  aplicarAlturaRapida();
+  descartarAlturaRapida();
+}
+// Fecha sem gravar (a horta foi trocada: outro projeto, mudança da nuvem, desfazer…)
+function descartarAlturaRapida() {
+  alturaRapida = null;
+  $('alturaRapida').classList.add('oculto');
+}
+// Grava a altura digitada (se mudou e for válida); Ctrl+Z desfaz
+function aplicarAlturaRapida() {
+  const a = alvoAlturaRapida(), inp = $('alturaRapida').querySelector('input');
+  if (!a || !inp || inp.value.trim() === alturaRapida.mostrado) return;   // não digitou: não mexe (a altura pode ter mudado no painel)
+  const n = Number(String(inp.value).replace(',', '.'));
+  const max = alturaRapida.zona ? 30 : 60;
+  if (!Number.isFinite(n) || n < 0 || n > max || Math.abs(n - (a.altura || 0)) < 1e-9) return;
+  registrar(); a.altura = n; mudou();
+}
+function montarAlturaRapida() {
+  const box = $('alturaRapida');
+  box.addEventListener('keydown', ev => {
+    if (ev.key === 'Enter') { ev.preventDefault(); fecharAlturaRapida(); }
+    else if (ev.key === 'Escape') { ev.preventDefault(); descartarAlturaRapida(); }
+    if (ev.target.matches('input')) ev.stopPropagation();   // digitando, as teclas não viram atalhos do mapa (Delete, Ctrl+Z…)
+  });
+  box.addEventListener('click', ev => {
+    const m = ev.target.closest('[data-material]');
+    if (m) {
+      const a = alvoAlturaRapida();
+      if (a && (a.material || 'solido') !== m.dataset.material) { aplicarAlturaRapida(); registrar(); a.material = m.dataset.material; mudou(); }
+      box.querySelectorAll('[data-material]').forEach(b => b.classList.toggle('ativa', b === m));
+      return;
+    }
+    if (ev.target.closest('[data-ok]')) fecharAlturaRapida();
+  });
+}
+
 
 // ---------- Alças de redimensionar ----------
 const ALCAS = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
@@ -279,6 +365,11 @@ function retsDaFileira(c, r) {
 const retLivre = (k, id = -1) => retDentro(k) && celsDoRet(k).every(i => podeOcupar(i, id));
 
 // ---------- Mouse (chamado por app.js no modo desenho) ----------
+// Clique sem desenhar (no vazio ou fora do terreno): solta a ferramenta e a seleção, volta para Selecionar
+function largarFerramenta() {
+  limparSelecaoExtra(); zonaAtiva = null; objetoAtivo = null;
+  escolherFerramenta('selecionar'); atualizarPaineis();
+}
 function formaPointerDown(ev, p) {
   const antes = JSON.stringify(estado);
   if (ferramenta !== 'forma') return false;
@@ -297,6 +388,8 @@ function formaPointerDown(ev, p) {
     ponteiro = { modo: 'novaForma', forma: formaDesenho, ini: limitar(p), fim: limitar(p), antes };
     return true;
   }
+  // fora do terreno: larga a ferramenta (volta para Selecionar)
+  if (formaDesenho !== 'linha') { largarFerramenta(); return true; }
   return false;
 }
 
@@ -406,15 +499,18 @@ function formaSoltar(pt) {
     return true;
   }
   if (pt.modo === 'novaForma') {
+    // clique sem arrastar no vazio: larga a ferramenta (volta para Selecionar) em vez de criar um quadradinho
+    if (pt.ini.c === pt.fim.c && pt.ini.r === pt.fim.r) { largarFerramenta(); return true; }
     const k = caixa(pt.ini, pt.fim);
-    const nz = criarZonaCelulas(pt.forma === 'circulo' ? celsDoCirculo(k) : celsDoRet(k), tipoNovaForma);
+    const nz = criarZonaCelulas(celsDaNovaForma(pt.forma, k, tipoNovaForma), tipoNovaForma);
     if (!nz) { avisar('Não dá para desenhar por cima de outra área (só por cima de caminho ou do vazio).'); return true; }
     limparSelecaoExtra();
     zonaAtiva = nz.id;
     objetoAtivo = null;
     registrar(pt.antes);
     mudou();
-    avisar(`“${nz.nome}” criado (${medidaRet(k)}).`);
+    if (nz.tipo === 'muro') abrirAlturaRapida({ zona: nz.id });
+    else avisar(`“${nz.nome}” criado (${medidaRet(k)}).`);
     return true;
   }
   return false;
@@ -440,6 +536,7 @@ function rotuloMedida(g, txt, x, y, cor = 'rgba(43,43,39,.88)') {
 }
 
 function desenharFormas(g, X, Y) {
+  if (alturaRapida) posicionarAlturaRapida();   // o campinho da altura acompanha o mapa (zoom, mover)
   if (!editandoDesenho) return;
   const cols = estado.cols;
   const pt = ponteiro;
@@ -462,13 +559,15 @@ function desenharFormas(g, X, Y) {
     for (const i of cels) { const c = i % cols, r = (i - c) / cols; g.fillRect(X(c), Y(r), X(c + 1) - X(c), Y(r + 1) - Y(r)); }
     g.globalAlpha = 1;
   };
-  if (pt && pt.modo === 'novaForma' && pt.forma === 'circulo') {
+  if (pt && pt.modo === 'novaForma' && (pt.forma === 'circulo' || tipoNovaForma === 'muro')) {
     const k = caixa(pt.ini, pt.fim);
-    const cels = celsDoCirculo(k);
+    const cels = celsDaNovaForma(pt.forma, k, tipoNovaForma);
     const ok = cels.every(i => podeOcupar(i, -1));
     pintaCels(cels, ok, TIPOS[tipoNovaForma].cor);
     g.setLineDash([5, 4]); g.strokeStyle = ok ? '#2b8a3e' : '#c92a2a'; g.lineWidth = 2;
-    g.beginPath(); g.ellipse((X(k.c0) + X(k.c1 + 1)) / 2, (Y(k.r0) + Y(k.r1 + 1)) / 2, (X(k.c1 + 1) - X(k.c0)) / 2, (Y(k.r1 + 1) - Y(k.r0)) / 2, 0, 0, Math.PI * 2);
+    g.beginPath();
+    if (pt.forma === 'circulo') g.ellipse((X(k.c0) + X(k.c1 + 1)) / 2, (Y(k.r0) + Y(k.r1 + 1)) / 2, (X(k.c1 + 1) - X(k.c0)) / 2, (Y(k.r1 + 1) - Y(k.r0)) / 2, 0, 0, Math.PI * 2);
+    else g.rect(X(k.c0) + 1, Y(k.r0) + 1, X(k.c1 + 1) - X(k.c0) - 2, Y(k.r1 + 1) - Y(k.r0) - 2);
     g.stroke(); g.setLineDash([]);
     rotuloMedida(g, medidaRet(k) + (ok ? '' : ' — não cabe'), X(k.c0), Y(k.r0), ok ? 'rgba(43,43,39,.88)' : '#c92a2a');
   } else if (pt && pt.modo === 'novaForma') {
@@ -515,10 +614,12 @@ function desenharFormas(g, X, Y) {
     g.beginPath(); ps.forEach((p, i) => (i ? g.lineTo(XX(p.x), YY(p.y)) : g.moveTo(XX(p.x), YY(p.y))));
     if (!linhaAberta() && ps.length > 2) g.closePath();
     g.stroke(); g.setLineDash([]);
+    // o primeiro ponto fecha a forma: fica maior e, com o mouse em cima, verde (é ali que termina)
+    const vaiFechar = cursor && cursor.x !== undefined && fechaNoInicio(pontoDoTracado(cursor));
     tracado.pontos.forEach((p, i) => {
-      const fecha = i === 0 && !linhaAberta() && tracado.pontos.length >= 3;   // o primeiro ponto fecha a área
-      g.beginPath(); g.arc(XX(p.x), YY(p.y), fecha ? 7 : 4, 0, Math.PI * 2);
-      g.fillStyle = fecha ? '#ebfbee' : '#fff'; g.fill(); g.strokeStyle = '#2b8a3e'; g.lineWidth = 2; g.stroke();
+      const fecha = i === 0 && tracado.pontos.length >= 3;
+      g.beginPath(); g.arc(XX(p.x), YY(p.y), fecha ? (vaiFechar ? 9 : 7) : 4, 0, Math.PI * 2);
+      g.fillStyle = fecha ? (vaiFechar ? '#69db7c' : '#ebfbee') : '#fff'; g.fill(); g.strokeStyle = '#2b8a3e'; g.lineWidth = 2; g.stroke();
     });
     const ult = tracado.pontos[tracado.pontos.length - 1];
     rotuloMedida(g, `${fmt(cels.length * metros(1) * metros(1), 1)} m²${ok ? '' : ' — não cabe'}`, XX(ult.x) + 8, YY(ult.y) - 4, ok ? undefined : '#c92a2a');
@@ -732,6 +833,7 @@ function atualizarPainelFormas() {
 }
 
 function montarFormas() {
+  montarAlturaRapida();
   // botões do quadro "N áreas selecionadas"
   $('zMulti').addEventListener('change', async ev => {
     if (!ev.target.matches('[data-multi-grupo]')) return;
