@@ -544,6 +544,12 @@
     return (objetoDentroDoTerreno(dentro) && !objetoDentroDoTerreno(borda)) || 'errou';
   });
 
+  teste('nome comprido num canteiro estreito: aparece cortado com "…", não some', () => {
+    const g = document.createElement('canvas').getContext('2d'); g.font = '13px sans-serif';
+    const curto = cortarTexto(g, 'Canteiro 1', 500), cortado = cortarTexto(g, '🟡 Canteiro das ervas', 60);
+    return (curto === 'Canteiro 1' && cortado.endsWith('…') && g.measureText(cortado).width <= 60 && cortado.length > 1) || `"${curto}" / "${cortado}"`;
+  });
+
   teste('nenhum erro no console durante os testes', () => !erros.length || erros.join(' | '));
   alternarDesenho(false);
 

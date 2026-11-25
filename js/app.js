@@ -471,6 +471,14 @@ function desenharEm(g, W, H, escala, v, interativo) {
   }
 }
 
+// Corta o texto com "…" para caber na largura (em vez de esconder o nome de um canteiro estreito)
+function cortarTexto(g, txt, largura) {
+  if (g.measureText(txt).width <= largura) return txt;
+  const letras = [...txt];   // não parte emojis ao meio
+  while (letras.length > 1 && g.measureText(letras.join('') + '…').width > largura) letras.pop();
+  return letras.join('').trimEnd() + '…';
+}
+
 function desenharRotulos(g, s, X, Y, solZonas, calendario) {
   if (s < 9) return;
   const fs = Math.max(9, Math.min(15, s * 0.8));
@@ -495,14 +503,14 @@ function desenharRotulos(g, s, X, Y, solZonas, calendario) {
     const nomeZona = (analise?.mal ? '⚠️ ' : '') + (sitEsp ? sitEsp.icone + ' ' : '') + z.nome;
 
     g.font = `650 ${fs}px ${fonte}`;
-    if (g.measureText(nomeZona).width + 10 > bw || fs + 8 > bh) continue;
+    if (bw < fs * 2 || fs + 8 > bh) continue;   // estreito ou baixo demais até para uma letra
 
     g.save();
     g.beginPath();
     g.rect(bx, by, bw, bh);
     g.clip();
     g.fillStyle = analise?.mal ? '#a61e1e' : 'rgba(30,30,25,.9)';
-    g.fillText(nomeZona, bx + 6, by + 5);
+    g.fillText(cortarTexto(g, nomeZona, bw - 10), bx + 6, by + 5);
 
     let plantas = TIPOS_COM_PLANTAS.includes(z.tipo)
       ? (z.plantas || []).filter(t => t && nomePlanta(t).toLowerCase() !== z.nome.toLowerCase()).map(t => {
@@ -530,7 +538,7 @@ function desenharRotulos(g, s, X, Y, solZonas, calendario) {
         const col = Math.floor(k / cabem);
         if (col >= colunas) return;
         const lin = k % cabem;
-        g.fillText(solZonas || calendario ? p : '• ' + p, bx + 6 + col * larg, topo + lin * alt, larg - 4);
+        g.fillText(cortarTexto(g, solZonas || calendario ? p : '• ' + p, larg - 4), bx + 6 + col * larg, topo + lin * alt);
       });
     }
     g.restore();
