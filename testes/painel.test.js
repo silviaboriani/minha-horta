@@ -224,6 +224,14 @@
     b.click();
     return zonaAtiva === z.id || `foi para ${zonaPorId(zonaAtiva)?.nome}`;
   });
+  teste('aceitar a quantidade sugerida não muda o espaço ocupado', () => {
+    const z = abrir(); z.plantas = ['abobrinha']; z.qtd = {}; z.plantio = { abobrinha: mesSol + 1 }; invalidarSol();
+    const sug = analiseHorta().porZona[z.id].plantas.find(x => x.id === 'abobrinha').sugestao;
+    const antes = situacaoEspaco(z.id).livre;
+    z.qtd = { abobrinha: sug }; invalidarSol();
+    const depois = situacaoEspaco(z.id).livre;
+    return (sug > 1 && Math.abs(antes - depois) < 1e-9) || `sugestão ${sug}, livre antes ${antes}, depois ${depois}`;
+  });
   teste('canteiro selecionado: o próximo passo continua à mostra, numa linha', () => {
     abrir(); estado.inicio = { passos: true, semArvores: false }; estado.diario = [];
     renderCalendario();

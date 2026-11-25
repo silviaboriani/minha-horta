@@ -243,8 +243,18 @@ function analiseHorta() {
   return cacheAnalise;
 }
 
+// Quantos pés contam no espaço: a quantidade escolhida; sem ela, a sugerida ("💡 usar ~N"),
+// para a barra não mudar quando a sugestão é aceita; sem sugestão, o mínimo que vale a pena.
+function pesQueContam(e, sugestoes) {
+  if (e.qtd) return e.qtd;
+  const s = sugestoes?.get(e.entrada);
+  return s > 0 ? s : minPes(e.p);
+}
+// Sugestões de quantidade das plantas de uma área (entrada → pés), da análise
+const sugestoesDaZona = (an, zonaId) => new Map((an.porZona[zonaId]?.plantas || []).map(x => [x.entrada, x.sugestao]));
+
 // Situação do canteiro no mês: livre, cabe mais ou cheio.
-// Plantas sem quantidade contam com a quantidade mínima que vale a pena (minPes).
+// Plantas sem quantidade contam com a quantidade sugerida (veja pesQueContam).
 // Cores: cheio = verde (é o objetivo), cabe mais = amarelo, livre = azul. Vermelho só para problemas.
 const SITUACAO = {
   livre:  { icone: '🔵', nome: 'livre' },
@@ -260,17 +270,18 @@ function situacaoEspaco(zonaId) {
   const area = (an.cont[zonaId] || 0) * lado * lado;
   const ents = (an.entradasPorZona[zonaId] || []).filter(e => e.p && e.ativos.has(m));
   if (!ents.length) return { tipo: 'livre', ...SITUACAO.livre, livre: area, area };
-  const ocupado = ents.reduce((s, e) => s + (e.pos.length ? e.posArea : (e.qtd || minPes(e.p)) * areaDePe(e.p)), 0);
+  const sugs = sugestoesDaZona(an, zonaId);
+  const ocupado = ents.reduce((s, e) => s + (e.pos.length ? e.posArea : pesQueContam(e, sugs) * areaDePe(e.p)), 0);
   const livre = Math.max(0, area - ocupado);
   const tipo = livre < area * 0.15 ? 'cheio' : 'espaco';
   return { tipo, ...SITUACAO[tipo], livre, area };
 }
 
 // Espaço livre (m²) do canteiro em todos os meses em que uma planta nova ficaria nele.
-// Plantas sem quantidade contam com o mínimo que vale a pena (igual à etiqueta do canteiro).
-function livreNosMeses(area, ents, ativos) {
+// Plantas sem quantidade contam com a quantidade sugerida (igual à etiqueta do canteiro).
+function livreNosMeses(area, ents, ativos, sugestoes) {
   const uso = m => ents.reduce((s, e) => s + (!e.p || !e.ativos.has(m) ? 0
-    : e.pos.length ? e.posArea : (e.qtd || minPes(e.p)) * areaDePe(e.p)), 0);
+    : e.pos.length ? e.posArea : pesQueContam(e, sugestoes) * areaDePe(e.p)), 0);
   return Math.max(0, Math.min(...[...ativos].map(m => area - uso(m))));
 }
 const cabemPes = (livre, p) => Math.floor(livre / areaDePe(p) + 1e-9);
@@ -289,7 +300,7 @@ function sugestoesPara(z, texto, opc = {}) {
   const area = (cont[z.id] || 0) * lado * lado;
   const vizinhas = [...(an.viz[z.id] || [])].map(zonaPorId).filter(Boolean);
   // Plantas (com seus meses no canteiro) desta área e das vizinhas
-  const entsAqui = an.entradasPorZona[z.id] || [];
+  const entsAqui = an.entradasPorZona[z.id] || [], sugsAqui = sugestoesDaZona(an, z.id);
   const entsViz = vizinhas.flatMap(v => (an.entradasPorZona[v.id] || []).map(e => ({ ...e, zona: v })));
   const usoMes = an.porZona[z.id]?.usoMes;
   const t = normalizar(texto);
@@ -325,7 +336,7 @@ function sugestoesPara(z, texto, opc = {}) {
     const boasV = [...new Set(juntoViz.filter(v => saoAmigas(p.id, v.id)).map(v => v.id))].filter(id => !boas.includes(id));
     if (boasV.length) { pontos += Math.min(3, boasV.length); motivos.push({ nivel: 'bem', texto: `🤝 vizinha de ${boasV.slice(0, 3).map(nomePlanta).join(', ')}` }); }
 
-    const livre = livreNosMeses(area, entsAqui, ativos);
+    const livre = livreNosMeses(area, entsAqui, ativos, sugsAqui);
     const cabem = cabemPes(livre, p);
     if (cabem < 1) { ok = false; motivos.push({ nivel: 'mal', texto: livre < area ? '📏 não cabe no espaço livre' : '📏 precisa de mais espaço' }); }
     else if (cabem < minPes(p)) { ok = false; motivos.push({ nivel: 'mal', texto: `📏 só cabem ${cabem}` }); }
@@ -435,7 +446,8 @@ function htmlCompanheiras(z) {
   const cabe = q => naEpoca(q, mes) && horas >= q.sol - 1.5;
   const area = (contarCelulas()[z.id] || 0) * ladoM() * ladoM();
   const ents = an.entradasPorZona[z.id] || [];
-  const semEspaco = q => naoCabe(livreNosMeses(area, ents, mesesAtivos(q, inicioPadrao(q, mes))), q);
+  const sugs = sugestoesDaZona(an, z.id);
+  const semEspaco = q => naoCabe(livreNosMeses(area, ents, mesesAtivos(q, inicioPadrao(q, mes)), sugs), q);
 
   const candidatas = [];
   const evitar = new Set();
