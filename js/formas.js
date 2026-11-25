@@ -106,6 +106,53 @@ function proximoNome(tipo) {
 }
 
 function criarZonaRet(k, tipo, modelo) { return criarZonaCelulas(celsDoRet(k), tipo, modelo); }
+
+// Caminhos, muros e composteiras desenhados por cima de outro do mesmo tipo, ou encostados nele, viram uma coisa só
+// (encostar conta para dar para emendar um muro começando ao lado da ponta). Canteiros não: cada um tem as suas plantas.
+const TIPOS_QUE_JUNTAM = ['caminho', 'muro', 'composteira'];
+const mesmoTipoQueJunta = (v, tipo) => v > 0 && TIPOS_QUE_JUNTAM.includes(tipo) && zonaPorId(v)?.tipo === tipo;
+// Uma forma nova pode ocupar: o vazio, caminho, ou uma área do mesmo tipo (que junta)
+const podeOcuparNova = (i, tipo) => podeOcupar(i, -1) || mesmoTipoQueJunta(estado.celulas[i], tipo);
+
+// Quais áreas a forma nova junta: as do mesmo tipo embaixo dela ou encostadas (lado com lado).
+// Pura: recebe os quadrados e a grade, devolve os ids, a maior primeiro.
+function areasParaJuntar(cels, tipo, celulas, cols, contagem) {
+  const perto = new Set();
+  for (const i of cels) {
+    const c = i % cols;
+    perto.add(celulas[i]);
+    if (c > 0) perto.add(celulas[i - 1]);
+    if (c < cols - 1) perto.add(celulas[i + 1]);
+    perto.add(celulas[i - cols]); perto.add(celulas[i + cols]);   // fora da grade dá undefined (não conta)
+  }
+  return [...perto].filter(v => mesmoTipoQueJunta(v, tipo))
+    .sort((a, b) => (contagem[b] || 0) - (contagem[a] || 0) || a - b);
+}
+
+// Cria a forma nova, ou junta com as do mesmo tipo embaixo dela ou encostadas.
+// Devolve { zona, juntou (quantas áreas), nada (desenhou só por cima do que já era dela), outras (as que sumiram) }.
+function criarOuJuntar(cels, tipo) {
+  if (!cels.length || cels.some(i => !podeOcuparNova(i, tipo))) return null;
+  const ids = areasParaJuntar(cels, tipo, estado.celulas, estado.cols, contarCelulas());
+  if (!ids.length) { const z = criarZonaCelulas(cels, tipo); return z && { zona: z, juntou: 0 }; }
+  const [fica, ...outras] = ids, some = new Set(outras);
+  const nada = !outras.length && cels.every(i => estado.celulas[i] === fica);
+  const sumiram = estado.zonas.filter(z => some.has(z.id));
+  for (const i of cels) estado.celulas[i] = fica;
+  if (some.size) {
+    estado.celulas = estado.celulas.map(v => (some.has(v) ? fica : v));
+    estado.zonas = estado.zonas.filter(z => !some.has(z.id));
+  }
+  return { zona: zonaPorId(fica), juntou: ids.length, nada, outras: sumiram };
+}
+
+// Mensagem da junção; avisa quando um muro juntado tinha outra altura ou material (fica o da maior parte)
+function textoJuntou(z, res) {
+  const m2 = fmt(celulasDaZona(z.id).length * metros(1) * metros(1), 1);
+  const diferente = z.tipo === 'muro' && res.outras.some(o => o.altura !== z.altura || (o.material || 'solido') !== (z.material || 'solido'));
+  return `Juntado ${res.juntou > 1 ? `com ${res.juntou} áreas ` : ''}em “${z.nome}” (${m2} m²)` +
+    (diferente ? ` — ficou tudo com ${fmt(z.altura, 1)} m${z.material === 'tela' ? ', de tela' : ''}, como a maior parte` : '') + '. Ctrl+Z desfaz.';
+}
 function criarZonaCelulas(cels, tipo, modelo) {
   if (!cels.length || cels.some(i => !podeOcupar(i, -1))) return null;
   const id = estado.proximoId++;
@@ -203,17 +250,19 @@ function terminarTracado() {
   if (ps.length < minimo) { avisar(linhaAberta() ? 'Marque pelo menos dois pontos.' : 'Marque pelo menos três pontos para fechar a área.'); return; }
   const cels = celsDoTracado(ps);
   const antes = JSON.stringify(estado);
-  const nz = criarZonaCelulas(cels, tipoNovaForma);
-  if (!nz) { avisar(cels.length ? 'Não dá para desenhar por cima de outra área (só por cima de caminho ou do vazio).' : 'A área ficou pequena demais.'); return; }
+  const res = criarOuJuntar(cels, tipoNovaForma), nz = res?.zona;
+  if (!nz) { avisar(cels.length ? 'Não dá para desenhar por cima de outra área (só por cima de caminho, do vazio ou de outro do mesmo tipo).' : 'A área ficou pequena demais.'); return; }
   tracado = null;
   limparSelecaoExtra();   // a área nova fica sozinha na seleção (não junto com o que estava selecionado)
   zonaAtiva = nz.id;
   objetoAtivo = null;
+  if (res.nada) { atualizarFerramentas(); atualizarPaineis(); desenhar(); return; }   // só passou por cima dela mesma
   registrar(antes);
   mudou();
   atualizarFerramentas();
   if (nz.tipo === 'muro') abrirAlturaRapida({ zona: nz.id });
-  else avisar(`“${nz.nome}” criado (${fmt(cels.length * metros(1) * metros(1), 1)} m²).`);
+  if (res.juntou) avisar(textoJuntou(nz, res));
+  else if (nz.tipo !== 'muro') avisar(`“${nz.nome}” criado (${fmt(cels.length * metros(1) * metros(1), 1)} m²).`);
 }
 function cancelarTracado() { tracado = null; atualizarFerramentas(); desenhar(); }
 function desfazerPontoTracado() {
@@ -502,15 +551,17 @@ function formaSoltar(pt) {
     // clique sem arrastar no vazio: larga a ferramenta (volta para Selecionar) em vez de criar um quadradinho
     if (pt.ini.c === pt.fim.c && pt.ini.r === pt.fim.r) { largarFerramenta(); return true; }
     const k = caixa(pt.ini, pt.fim);
-    const nz = criarZonaCelulas(celsDaNovaForma(pt.forma, k, tipoNovaForma), tipoNovaForma);
-    if (!nz) { avisar('Não dá para desenhar por cima de outra área (só por cima de caminho ou do vazio).'); return true; }
+    const res = criarOuJuntar(celsDaNovaForma(pt.forma, k, tipoNovaForma), tipoNovaForma), nz = res?.zona;
+    if (!nz) { avisar('Não dá para desenhar por cima de outra área (só por cima de caminho, do vazio ou de outro do mesmo tipo).'); return true; }
     limparSelecaoExtra();
     zonaAtiva = nz.id;
     objetoAtivo = null;
+    if (res.nada) { atualizarPaineis(); return true; }   // só passou por cima dela mesma: nada a desfazer
     registrar(pt.antes);
     mudou();
     if (nz.tipo === 'muro') abrirAlturaRapida({ zona: nz.id });
-    else avisar(`“${nz.nome}” criado (${medidaRet(k)}).`);
+    if (res.juntou) avisar(textoJuntou(nz, res));
+    else if (nz.tipo !== 'muro') avisar(`“${nz.nome}” criado (${medidaRet(k)}).`);
     return true;
   }
   return false;
@@ -562,7 +613,7 @@ function desenharFormas(g, X, Y) {
   if (pt && pt.modo === 'novaForma' && (pt.forma === 'circulo' || tipoNovaForma === 'muro')) {
     const k = caixa(pt.ini, pt.fim);
     const cels = celsDaNovaForma(pt.forma, k, tipoNovaForma);
-    const ok = cels.every(i => podeOcupar(i, -1));
+    const ok = cels.every(i => podeOcuparNova(i, tipoNovaForma));
     pintaCels(cels, ok, TIPOS[tipoNovaForma].cor);
     g.setLineDash([5, 4]); g.strokeStyle = ok ? '#2b8a3e' : '#c92a2a'; g.lineWidth = 2;
     g.beginPath();
@@ -572,7 +623,7 @@ function desenharFormas(g, X, Y) {
     rotuloMedida(g, medidaRet(k) + (ok ? '' : ' — não cabe'), X(k.c0), Y(k.r0), ok ? 'rgba(43,43,39,.88)' : '#c92a2a');
   } else if (pt && pt.modo === 'novaForma') {
     const k = caixa(pt.ini, pt.fim);
-    pintaRet(k, retLivre(k), TIPOS[tipoNovaForma].cor);
+    pintaRet(k, retDentro(k) && celsDoRet(k).every(i => podeOcuparNova(i, tipoNovaForma)), TIPOS[tipoNovaForma].cor);
   } else if (pt && pt.modo === 'redim' && z) {
     pintaRet(pt.k, celsDoRet(pt.k).every(i => podeOcupar(i, z.id)), z.cor);
   } else if (pt && pt.modo === 'moverZona' && z && (pt.dc || pt.dr)) {
@@ -607,7 +658,7 @@ function desenharFormas(g, X, Y) {
     const ps = [...tracado.pontos];
     if (cursor && cursor.x !== undefined) ps.push(pontoDoTracado(cursor));
     const cels = celsDoTracado(ps);
-    const ok = cels.every(i => podeOcupar(i, -1));
+    const ok = cels.every(i => podeOcuparNova(i, tipoNovaForma));
     pintaCels(cels, ok, TIPOS[tipoNovaForma].cor);
     const XX = x => vista.ox + x * vista.zoom, YY = y => vista.oy + y * vista.zoom;
     g.strokeStyle = ok ? '#2b8a3e' : '#c92a2a'; g.lineWidth = 2; g.setLineDash([5, 4]);

@@ -550,6 +550,57 @@
     return (curto === 'Canteiro 1' && cortado.endsWith('…') && g.measureText(cortado).width <= 60 && cortado.length > 1) || `"${curto}" / "${cortado}"`;
   });
 
+  // ---- formas do mesmo tipo que se sobrepõem viram uma só
+  teste('caminho desenhado por cima de outro caminho: vira um caminho só, com os dois pedaços', () => {
+    vazio(); categoria('caminho'); jeito('ret');
+    arrastar(2.5, 2.5, 20.5, 5.5); const primeiro = zonaAtiva;
+    arrastar(15.5, 2.5, 18.5, 30.5);
+    const caminhos = estado.zonas.filter(z => z.tipo === 'caminho');
+    return (caminhos.length === 1 && zonaAtiva === primeiro && celula(17, 25) === primeiro && celula(3, 3) === primeiro) ||
+      `caminhos ${caminhos.length}, ativo ${zonaAtiva}/${primeiro}, ${celula(17, 25)}`;
+  });
+  teste('muro que cruza dois muros junta os três num só; Ctrl+Z volta aos dois', () => {
+    vazio(); categoria('muro'); jeito('ret');
+    arrastar(2.5, 2.5, 10.5, 10.5); fecharAlturaRapida();
+    arrastar(20.5, 2.5, 28.5, 10.5); fecharAlturaRapida();
+    arrastar(1.5, 1.5, 25.5, 2.5); fecharAlturaRapida();   // uma faixa de muro por cima dos dois (começa no vazio)
+    const juntos = estado.zonas.filter(z => z.tipo === 'muro').length;
+    desfazer();
+    const antes = estado.zonas.filter(z => z.tipo === 'muro').length;
+    return (juntos === 1 && antes === 2) || `juntos ${juntos}, depois do Ctrl+Z ${antes}`;
+  });
+  teste('muro encostado na ponta de outro (sem passar por cima) emenda nele; com outra altura, a mensagem diz', () => {
+    vazio(); categoria('muro'); jeito('linha');
+    clicar(2.5, 10.5); clicar(12.5, 10.5); tecla('Enter'); fecharAlturaRapida();
+    zonaPorId(zonaAtiva).altura = 2;
+    clicar(13.5, 10.5); clicar(25.5, 10.5); tecla('Enter'); fecharAlturaRapida();
+    const muros = estado.zonas.filter(z => z.tipo === 'muro');
+    const msg = $('aviso').textContent;
+    return (muros.length === 1 && celula(20, 10) === muros[0].id && /Juntado/.test(msg)) || `muros ${muros.length}, aviso "${msg}"`;
+  });
+  teste('caminho desenhado todo dentro de outro: não muda nada nem cria passo de desfazer', () => {
+    vazio(); categoria('caminho'); jeito('ret'); arrastar(2.5, 2.5, 20.5, 10.5);
+    const n = historico.length;
+    arrastar(5.5, 4.5, 10.5, 8.5);
+    return (estado.zonas.length === 1 && historico.length === n) || `áreas ${estado.zonas.length}, desfazer +${historico.length - n}`;
+  });
+  teste('composteira com o círculo por cima de outra: junta', () => {
+    vazio(); categoria('composteira'); jeito('ret'); arrastar(2.5, 2.5, 8.5, 8.5);
+    jeito('circulo'); arrastar(12.5, 5.5, 6.5, 12.5);
+    return estado.zonas.filter(z => z.tipo === 'composteira').length === 1 || estado.zonas.map(z => z.nome).join(',');
+  });
+  teste('canteiro por cima de outro canteiro continua não podendo (não junta)', () => {
+    vazio(); categoria('canteiro'); jeito('ret');
+    arrastar(2.5, 2.5, 10.5, 10.5);
+    arrastar(12.5, 5.5, 8.5, 15.5);   // começa fora e passa por cima do primeiro
+    return estado.zonas.length === 1 || `áreas ${estado.zonas.length}`;
+  });
+  teste('muro por cima de um caminho não junta (tipos diferentes)', () => {
+    vazio(); categoria('caminho'); jeito('ret'); arrastar(2.5, 2.5, 20.5, 5.5);
+    categoria('muro'); jeito('ret'); arrastar(10.5, 1.5, 10.5, 12.5); fecharAlturaRapida();
+    return (estado.zonas.length === 2 && estado.zonas.some(z => z.tipo === 'muro')) || estado.zonas.map(z => z.tipo).join(',');
+  });
+
   teste('nenhum erro no console durante os testes', () => !erros.length || erros.join(' | '));
   alternarDesenho(false);
 
